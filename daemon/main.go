@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -57,11 +56,19 @@ func main() {
 	}
 	log.Info("Started")
 
-	containers, err := cli.ListContainers(docker.ListContainersOptions{})
+	//Let's print out containers for proof
+	//containers, err := cli.ListContainers(docker.ListContainersOptions{})
+	//for _, container := range containers {
+	//	fmt.Printf("%s %s\n", container.ID[:10], container.Image)
+	//}
 
-	for _, container := range containers {
-		fmt.Printf("%s %s\n", container.ID[:10], container.Image)
+	log.Info("Cleaning Up")
+	err = cli.StopContainer(c.ID, 10)
+	if err != nil {
+		panic(err)
 	}
+	removeContainer(cli, c.ID)
+	log.Info("Clean Up Complete")
 
 }
 
@@ -120,4 +127,15 @@ func createDockerContainer(client *docker.Client, hostname string, volumePath st
 	//Create Container
 	c, err := client.CreateContainer(config)
 	return c, err
+}
+
+//Removes a container
+func removeContainer(client *docker.Client, id string) error {
+	var options docker.RemoveContainerOptions
+	options.ID = id
+	options.RemoveVolumes = true
+	options.Force = true
+	options.Context = context.Background()
+
+	return client.RemoveContainer(options)
 }
