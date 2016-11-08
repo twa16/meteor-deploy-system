@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/op/go-logging"
@@ -91,15 +93,13 @@ func createDockerContainer(client *client.Client, hostname string, volumePath st
 	var hostConfig container.HostConfig
 	hostConfig.Binds = []string{"/bundle:" + volumePath}
 	//Setup Port Maps
-	var portMap nat.PortMap
 	//Forward a dynamic host port to container. Listen on localhost so that nginx can proxy.
-	portMap["80/tcp"] = PortBinding{HostIP: "127.0.0.1", HostPort: externalPort}
-	hostConfig.PortBindings = portMap
+	hostConfig.PortBindings["80/tcp"][0] = nat.PortBinding{HostIP: "127.0.0.1", HostPort: externalPort}
 
 	//======Network Config=====
-	var networkConfig network.Config
+	var networkConfig network.NetworkingConfig
 	//Create Container
-	c, err := client.ContainerCreate(context.Background(), containerConfig, hostConfig, networkConfig, hostname)
+	c, err := client.ContainerCreate(context.Background(), &containerConfig, &hostConfig, &networkConfig, hostname)
 	if err != nil {
 		panic(err)
 	}
