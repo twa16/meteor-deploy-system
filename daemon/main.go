@@ -3,11 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/op/go-logging"
@@ -42,14 +38,26 @@ func main() {
 	//Docker: Starting Docker Client
 	log.Info("Connecting to Docker")
 	cli, err := startDockerClient()
-
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		panic("Failed to Connect to Docker: " + err.Error())
 	}
 	log.Info("Connected to Docker")
+
 	log.Info("Creating Test Container")
-	createDockerContainer(cli, "testhostname", "/tmp", "4356")
+	c, err := createDockerContainer(cli, "testcontainer", "/tmp/test", "8756")
+	if err != nil {
+		panic(err)
+	}
+	log.Info("Created")
+
+	log.Info("Starting Test Container")
+	err = cli.StartContainer(c.ID, nil)
+	if err != nil {
+		panic(err)
+	}
+	log.Info("Started")
+
+	containers, err := cli.ListContainers(docker.ListContainersOptions{})
 
 	for _, container := range containers {
 		fmt.Printf("%s %s\n", container.ID[:10], container.Image)
@@ -57,8 +65,8 @@ func main() {
 
 }
 
-func startDockerClient() (*client.Client, error) {
-	cli, err := client.NewEnvClient()
+func startDockerClient() (*docker.Client, error) {
+	cli, err := docker.NewClientFromEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -73,9 +81,9 @@ func startMongo() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *client.Client, hostname string, volumePath string, externalPort string) {
+func createDockerContainer(client *docker.Client, hostname string, volumePath string, externalPort string) (*docker.Container, error) {
 	//======Container Config=====
-	var containerConfig container.Config
+	var containerConfig docker.Config
 	//Set the image
 	containerConfig.Image = "kadirahq/meteord"
 	//Set the hostname
@@ -86,22 +94,30 @@ func createDockerContainer(client *client.Client, hostname string, volumePath st
 	containerConfig.Volumes["/bundle"] = v
 	//Ports
 	//port80, _ := nat.NewPort("tcp", "80")
+	containerConfig.ExposedPorts = make(map[docker.Port]struct{})
 	containerConfig.ExposedPorts["80/tcp"] = v
 
 	//=====Host Config======
 	//Setup Volume Bindings
-	var hostConfig container.HostConfig
-	hostConfig.Binds = []string{"/bundle:" + volumePath}
+	var hostConfig docker.HostConfig
+	hostConfig.Binds = []string{volumePath + ":/bundle"}
 	//Setup Port Maps
 	//Forward a dynamic host port to container. Listen on localhost so that nginx can proxy.
-	hostConfig.PortBindings["80/tcp"][0] = nat.PortBinding{HostIP: "127.0.0.1", HostPort: externalPort}
+	hostConfig.PortBindings = make(map[docker.Port][]docker.PortBinding)
+	hostConfig.PortBindings["80/tcp"] = append(hostConfig.PortBindings["80/tcp"], docker.PortBinding{HostIP: "127.0.0.1", HostPort: externalPort})
 
 	//======Network Config=====
-	var networkConfig network.NetworkingConfig
+	var networkConfig docker.NetworkingConfig
+
+	//======Container Creation=====
+	//Wrapup config
+	var config docker.CreateContainerOptions
+	config.Name = hostname + "-meteord"
+	config.Config = &containerConfig
+	config.HostConfig = &hostConfig
+	config.NetworkingConfig = &networkConfig
+	config.Context = context.Background()
 	//Create Container
-	c, err := client.ContainerCreate(context.Background(), &containerConfig, &hostConfig, &networkConfig, hostname)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(c.ID)
+	c, err := client.CreateContainer(config)
+	return c, err
 }
