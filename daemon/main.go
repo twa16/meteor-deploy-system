@@ -6,6 +6,9 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/op/go-logging"
+	"math/rand"
+	"os"
+	"strconv"
 )
 
 type Deployment struct {
@@ -24,6 +27,14 @@ var log = logging.MustGetLogger("mds-daemon")
 func main() {
 	log.Info("Meteor Deploy System - Manuel Gauto (mgauto@mgenterprises.org)")
 	log.Info("Starting...")
+
+	//Setup logging format
+	var format = logging.MustStringFormatter(
+		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	)
+	backend1 := logging.NewLogBackend(os.Stderr, "", 0)
+	backend1Formatter := logging.NewBackendFormatter(backend1, format)
+	logging.SetBackend(backend1Formatter)
 
 	//Database: Starting Connection
 	log.Info("Starting ORM...")
@@ -48,8 +59,8 @@ func main() {
 	log.Info("Connected to Docker")
 
 	//=====Start API======
-	log.Info("Start Complete! Starting API.")
 	createDeployment(cli, db, "First-Project", "/tmp/test")
+	log.Info("Start Complete! Starting API.")
 	startAPI(cli, db)
 }
 
@@ -98,7 +109,6 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	//======Container Creation=====
 	//Wrapup config
 	var config docker.CreateContainerOptions
-	config.Name = hostname + "-meteord"
 	config.Config = &containerConfig
 	config.HostConfig = &hostConfig
 	config.NetworkingConfig = &networkConfig
@@ -122,7 +132,8 @@ func removeContainer(client *docker.Client, id string) error {
 //Creates and starts a deployment
 // projectName cannot contain spaces
 func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*Deployment, error) {
-	var deployment = Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: "8345", ProjectName: projectName}
+	var port = strconv.Itoa(getNextOpenPort(db))
+	var deployment = Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
 	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
@@ -136,6 +147,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//If there was no error then the container is running
 	deployment.Status = "running"
 	db.Create(&deployment)
+	log.Info(deployment)
 	return &deployment, nil
 }
 
@@ -154,4 +166,16 @@ func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (
 	db.Save(&deployment)
 
 	return &deployment, nil
+}
+
+func getNextOpenPort(db *gorm.DB) int {
+	for true {
+		var portTry = 30000 + rand.Intn(10000)
+		var deployment Deployment
+		if db.Where(&Deployment{Port: strconv.Itoa(portTry)}).First(&deployment).RecordNotFound() {
+			return portTry
+		}
+	}
+	//This will never be reached but it makes the compilier happy
+	return -1
 }
