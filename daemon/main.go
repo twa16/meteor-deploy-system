@@ -10,8 +10,13 @@ import (
 
 type Deployment struct {
 	gorm.Model
-	VolumePath string
-	AutoStart  bool
+	ProjectName string //Name of this project
+	ownerID     uint   //ID of user that owns this project
+	VolumePath  string //Path to the folder that contains the meteor application on the hose
+	AutoStart   bool   //Should the container be started automatically
+	ContainerID string //The ID of the container that contains the application
+	Port        string //Port that the application is listening on
+	Status      string //Status of the container, updated on inspect
 }
 
 var log = logging.MustGetLogger("mds-daemon")
@@ -42,34 +47,10 @@ func main() {
 	}
 	log.Info("Connected to Docker")
 
-	log.Info("Creating Test Container")
-	c, err := createDockerContainer(cli, "testcontainer", "/tmp/test", "8756")
-	if err != nil {
-		panic(err)
-	}
-	log.Info("Created")
-
-	log.Info("Starting Test Container")
-	err = cli.StartContainer(c.ID, nil)
-	if err != nil {
-		panic(err)
-	}
-	log.Info("Started")
-
-	//Let's print out containers for proof
-	//containers, err := cli.ListContainers(docker.ListContainersOptions{})
-	//for _, container := range containers {
-	//	fmt.Printf("%s %s\n", container.ID[:10], container.Image)
-	//}
-
-	log.Info("Cleaning Up")
-	err = cli.StopContainer(c.ID, 10)
-	if err != nil {
-		panic(err)
-	}
-	removeContainer(cli, c.ID)
-	log.Info("Clean Up Complete")
-
+	//=====Start API======
+	log.Info("Start Complete! Starting API.")
+	createDeployment(cli, db, "First-Project", "/tmp/test")
+	startAPI(cli, db)
 }
 
 func startDockerClient() (*docker.Client, error) {
@@ -88,13 +69,11 @@ func startMongo() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *docker.Client, hostname string, volumePath string, externalPort string) (*docker.Container, error) {
+func createDockerContainer(client *docker.Client, volumePath string, externalPort string) (*docker.Container, error) {
 	//======Container Config=====
 	var containerConfig docker.Config
 	//Set the image
 	containerConfig.Image = "kadirahq/meteord"
-	//Set the hostname
-	containerConfig.Hostname = hostname
 	//Create the volume that will contain the app code
 	containerConfig.Volumes = make(map[string]struct{})
 	var v struct{}
@@ -138,4 +117,41 @@ func removeContainer(client *docker.Client, id string) error {
 	options.Context = context.Background()
 
 	return client.RemoveContainer(options)
+}
+
+//Creates and starts a deployment
+// projectName cannot contain spaces
+func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*Deployment, error) {
+	var deployment = Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: "8345", ProjectName: projectName}
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
+	if err != nil {
+		log.Critical("Failed to create container: " + err.Error())
+	}
+	deployment.ContainerID = container.ID
+	err = dClient.StartContainer(container.ID, nil)
+	if err != nil {
+		log.Critical("Failed to start container: " + err.Error())
+		return nil, err
+	}
+	//If there was no error then the container is running
+	deployment.Status = "running"
+	db.Create(&deployment)
+	return &deployment, nil
+}
+
+func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (*Deployment, error) {
+	//First, let's grab the deployment description from the DB
+	var deployment Deployment
+	db.First(&deployment, deploymentId)
+
+	//Now let's grab the actual container
+	container, err := dClient.InspectContainer(deployment.ContainerID)
+	if err != nil {
+		return nil, err
+	}
+	//Save the status
+	deployment.Status = container.State.Status
+	db.Save(&deployment)
+
+	return &deployment, nil
 }
