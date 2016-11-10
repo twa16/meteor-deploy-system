@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"context"
@@ -6,20 +6,32 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/op/go-logging"
+	"github.com/spf13/viper"
+	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"os"
 	"strconv"
 )
 
+// Represents a "deployment"
 type Deployment struct {
 	gorm.Model
-	ProjectName string //Name of this project
-	ownerID     uint   //ID of user that owns this project
-	VolumePath  string //Path to the folder that contains the meteor application on the hose
-	AutoStart   bool   //Should the container be started automatically
-	ContainerID string //The ID of the container that contains the application
-	Port        string //Port that the application is listening on
-	Status      string //Status of the container, updated on inspect
+	ProjectName  string //Name of this project
+	ownerID      uint   //ID of user that owns this project
+	VolumePath   string //Path to the folder that contains the meteor application on the hose
+	AutoStart    bool   //Should the container be started automatically
+	ContainerID  string //The ID of the container that contains the application
+	Port         string //Port that the application is listening on
+	Status       string //Status of the container, updated on inspect
+	allowedUsers []uint
+}
+
+type User struct {
+	gorm.Model
+	firstName    string
+	lastName     string
+	email        string
+	passwordHash []byte //BCrypt hash of password
 }
 
 var log = logging.MustGetLogger("mds-daemon")
@@ -50,6 +62,9 @@ func main() {
 	db.AutoMigrate(&Deployment{})
 	log.Info("Migration Complete")
 
+	//Ensure admin user exists
+	ensureAdminUser()
+
 	//Docker: Starting Docker Client
 	log.Info("Connecting to Docker")
 	cli, err := startDockerClient()
@@ -64,6 +79,10 @@ func main() {
 	startAPI(cli, db)
 }
 
+func ensureAdminUser() {
+
+}
+
 func startDockerClient() (*docker.Client, error) {
 	cli, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -72,8 +91,17 @@ func startDockerClient() (*docker.Client, error) {
 	return cli, err
 }
 
-func startMongo() {
+func loadConfig() {
+	viper.SetConfigName("config")                   // name of config file (without extension)
+	viper.AddConfigPath("/etc/meteordeploysystem/") // path to look for the config file in
+	viper.AddConfigPath(".")                        // optionally look for config in the working directory
+	err := viper.ReadInConfig()                     // Find and read the config file
+	if err != nil {
+		log.Fatal("Fatal error config file: %s \n", err) // Handle errors reading the config file
+		panic(err)
+	}
 
+	//viper.SetDefault("k", "v")
 }
 
 // Creates a docker container that will hold the meteor application

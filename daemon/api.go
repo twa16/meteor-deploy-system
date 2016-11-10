@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import (
 	"encoding/json"
@@ -9,6 +9,12 @@ import (
 	"goji.io/pat"
 	"net/http"
 )
+
+type AuthenticationToken struct {
+	gorm.Model
+	AuthenticationToken string
+	UserID              uint
+}
 
 var dClient *docker.Client
 var database *gorm.DB

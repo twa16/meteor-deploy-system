@@ -1,9 +1,0 @@
-package: .
-import:
-- package: github.com/fsouza/go-dockerclient
-- package: github.com/jinzhu/gorm
-  version: ^1.0.0
-  subpackages:
-  - dialects/sqlite
-- package: github.com/op/go-logging
-  version: ^1.0.0

@@ -20,7 +20,9 @@
 
 package main
 
-import "github.com/twa16/meteor-deploy-system/cli/cmd"
+import (
+	"github.com/twa16/meteor-deploy-system/cli/cmd"
+)
 
 func main() {
 	cmd.Execute()
