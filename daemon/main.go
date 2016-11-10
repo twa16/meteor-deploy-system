@@ -28,10 +28,11 @@ type Deployment struct {
 
 type User struct {
 	gorm.Model
-	firstName    string
-	lastName     string
-	email        string
-	passwordHash []byte //BCrypt hash of password
+	FirstName    string
+	LastName     string
+	Username     string `gorm:"unique"`
+	Email        string
+	PasswordHash []byte //BCrypt hash of password
 }
 
 var log = logging.MustGetLogger("mds-daemon")
@@ -79,8 +80,24 @@ func main() {
 	startAPI(cli, db)
 }
 
-func ensureAdminUser() {
+func ensureAdminUser(db *gorm.DB) {
+	var user User
+}
 
+func getUser(username string) {
+	db.Where("username = ?")
+}
+
+func createUser(firstName string, lastName string, username string, email string, password string) {
+	var user User
+	user.FirstName = firstName
+	user.LastName = lastName
+	user.Username = username
+	user.Email = email
+	user.PasswordHash = bcrypt.GenerateFromPassword([]byte(password), 12)
+
+	log.Infof("Created User: %s", user.Username)
+	database.Create(&user)
 }
 
 func startDockerClient() (*docker.Client, error) {
@@ -206,4 +223,18 @@ func getNextOpenPort(db *gorm.DB) int {
 	}
 	//This will never be reached but it makes the compilier happy
 	return -1
+}
+
+func randStr(strSize int) string {
+
+	var dictionary string
+
+	dictionary = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+	var bytes = make([]byte, strSize)
+	rand.Read(bytes)
+	for k, v := range bytes {
+		bytes[k] = dictionary[v%byte(len(dictionary))]
+	}
+	return string(bytes)
 }
