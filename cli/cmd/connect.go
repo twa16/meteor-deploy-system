@@ -21,7 +21,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -30,14 +33,21 @@ import (
 var connectCmd = &cobra.Command{
 	Use:   "connect",
 	Short: "Connect the mds cli to a server",
-	Long: `Use this command to specify how to connect to 
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Long: `Use this command to specify how to connect to an MDS server
+	connect [hostname]
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: Work your own magic here
-		fmt.Println("connect called")
+		if len(args) == 0 {
+			fmt.Println("Please provide a host to connect to")
+			return
+		}
+		fmt.Println("Attempting to connect to: " + args[0])
+		data := url.Values{}
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter Username: ")
+		text, _ := reader.ReadString('\n')
+		data.Set("username", text)
 	},
 }
 
