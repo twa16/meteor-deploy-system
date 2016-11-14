@@ -30,6 +30,12 @@ type User struct {
 	LastName     string
 	Username     string `gorm:"unique"`
 	Email        string
-	PasswordHash []byte   //BCrypt hash of password
-	Permissions  []string //Permissions that this user has
+	PasswordHash []byte           //BCrypt hash of password
+	Permissions  []UserPermission //Permissions that this user has
+}
+
+type UserPermission struct {
+	gorm.Model
+	UserID     uint
+	permission string
 }

@@ -58,7 +58,8 @@ func handleLoginAttempt(username string, password string) (mds.AuthenticationTok
 	}
 	//Let's create a token
 	token := mds.AuthenticationToken{}
-	token.AuthenticationToken = randStr(32)
+	tokenGen, _ := GenerateRandomString(32)
+	token.AuthenticationToken = tokenGen
 	token.UserID = user.ID
 	token.LastSeen = time.Now().Unix()
 

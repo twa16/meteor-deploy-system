@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -9,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/bcrypt"
-	"math/rand"
+	math "math/rand"
 	"os"
 	"strconv"
 )
@@ -40,7 +42,10 @@ func main() {
 	//Database: Migrating Schemas
 	log.Info("Migrating Schemas")
 	db.AutoMigrate(&mds.Deployment{})
+	db.AutoMigrate(&mds.UserPermission{})
+	//db.Model(&mds.User{}).Related(&mds.UserPermission{})
 	db.AutoMigrate(&mds.User{})
+	db.AutoMigrate(&mds.AuthenticationToken{})
 	log.Info("Migration Complete")
 
 	//Ensure admin user exists
@@ -64,7 +69,7 @@ func ensureAdminUser(db *gorm.DB) {
 	log.Info("Checking is admin user exists.")
 	_, err := getUser(db, "admin")
 	if err != nil {
-		password := randStr(16)
+		password, _ := GenerateRandomString(16)
 		createUser(db, "Admin", "User", "admin", "admin@company.com", password)
 		log.Info("Created admin user with password: " + password)
 	} else {
@@ -209,7 +214,7 @@ func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (
 
 func getNextOpenPort(db *gorm.DB) int {
 	for true {
-		var portTry = 30000 + rand.Intn(10000)
+		var portTry = 30000 + math.Intn(10000)
 		var deployment mds.Deployment
 		if db.Where(&mds.Deployment{Port: strconv.Itoa(portTry)}).First(&deployment).RecordNotFound() {
 			return portTry
@@ -219,16 +224,27 @@ func getNextOpenPort(db *gorm.DB) int {
 	return -1
 }
 
-func randStr(strSize int) string {
-
-	var dictionary string
-
-	dictionary = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-
-	var bytes = make([]byte, strSize)
-	rand.Read(bytes)
-	for k, v := range bytes {
-		bytes[k] = dictionary[v%byte(len(dictionary))]
+// GenerateRandomBytes returns securely generated random bytes.
+// It will return an error if the system's secure random
+// number generator fails to function correctly, in which
+// case the caller should not continue.
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
 	}
-	return string(bytes)
+
+	return b, nil
+}
+
+// GenerateRandomString returns a URL-safe, base64 encoded
+// securely generated random string.
+// It will return an error if the system's secure random
+// number generator fails to function correctly, in which
+// case the caller should not continue.
+func GenerateRandomString(s int) (string, error) {
+	b, err := GenerateRandomBytes(s)
+	return base64.URLEncoding.EncodeToString(b), err
 }
