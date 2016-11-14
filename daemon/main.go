@@ -1,4 +1,4 @@
-package daemon
+package main
 
 import (
 	"context"
@@ -7,33 +7,12 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/op/go-logging"
 	"github.com/spf13/viper"
+	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/bcrypt"
 	"math/rand"
 	"os"
 	"strconv"
 )
-
-// Represents a "deployment"
-type Deployment struct {
-	gorm.Model
-	ProjectName  string //Name of this project
-	ownerID      uint   //ID of user that owns this project
-	VolumePath   string //Path to the folder that contains the meteor application on the hose
-	AutoStart    bool   //Should the container be started automatically
-	ContainerID  string //The ID of the container that contains the application
-	Port         string //Port that the application is listening on
-	Status       string //Status of the container, updated on inspect
-	allowedUsers []uint
-}
-
-type User struct {
-	gorm.Model
-	FirstName    string
-	LastName     string
-	Username     string `gorm:"unique"`
-	Email        string
-	PasswordHash []byte //BCrypt hash of password
-}
 
 var log = logging.MustGetLogger("mds-daemon")
 
@@ -60,11 +39,12 @@ func main() {
 
 	//Database: Migrating Schemas
 	log.Info("Migrating Schemas")
-	db.AutoMigrate(&Deployment{})
+	db.AutoMigrate(&mds.Deployment{})
+	db.AutoMigrate(&mds.User{})
 	log.Info("Migration Complete")
 
 	//Ensure admin user exists
-	ensureAdminUser()
+	ensureAdminUser(db)
 
 	//Docker: Starting Docker Client
 	log.Info("Connecting to Docker")
@@ -75,29 +55,43 @@ func main() {
 	log.Info("Connected to Docker")
 
 	//=====Start API======
-	createDeployment(cli, db, "First-Project", "/tmp/test")
+	//createDeployment(cli, db, "First-Project", "/tmp/test")
 	log.Info("Start Complete! Starting API.")
 	startAPI(cli, db)
 }
 
 func ensureAdminUser(db *gorm.DB) {
-	var user User
+	log.Info("Checking is admin user exists.")
+	_, err := getUser(db, "admin")
+	if err != nil {
+		password := randStr(16)
+		createUser(db, "Admin", "User", "admin", "admin@company.com", password)
+		log.Info("Created admin user with password: " + password)
+	} else {
+		log.Info("Admin user exists.")
+	}
 }
 
-func getUser(username string) {
-	db.Where("username = ?")
+func getUser(db *gorm.DB, username string) (mds.User, error) {
+	var user mds.User
+	err := db.Where("username = ?", username).First(&user).Error
+	return user, err
 }
 
-func createUser(firstName string, lastName string, username string, email string, password string) {
-	var user User
+func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string) {
+	user := mds.User{}
 	user.FirstName = firstName
 	user.LastName = lastName
 	user.Username = username
 	user.Email = email
-	user.PasswordHash = bcrypt.GenerateFromPassword([]byte(password), 12)
-
-	log.Infof("Created User: %s", user.Username)
-	database.Create(&user)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	user.PasswordHash = passwordHash
+	if err != nil {
+		log.Fatal("Error hashing password: %s \n", err)
+	} else {
+		log.Infof("Created User: %s", user.Username)
+		db.Create(&user)
+	}
 }
 
 func startDockerClient() (*docker.Client, error) {
@@ -176,9 +170,9 @@ func removeContainer(client *docker.Client, id string) error {
 
 //Creates and starts a deployment
 // projectName cannot contain spaces
-func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*Deployment, error) {
+func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*mds.Deployment, error) {
 	var port = strconv.Itoa(getNextOpenPort(db))
-	var deployment = Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
+	var deployment = mds.Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
 	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
@@ -196,9 +190,9 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	return &deployment, nil
 }
 
-func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (*Deployment, error) {
+func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (*mds.Deployment, error) {
 	//First, let's grab the deployment description from the DB
-	var deployment Deployment
+	var deployment mds.Deployment
 	db.First(&deployment, deploymentId)
 
 	//Now let's grab the actual container
@@ -216,8 +210,8 @@ func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (
 func getNextOpenPort(db *gorm.DB) int {
 	for true {
 		var portTry = 30000 + rand.Intn(10000)
-		var deployment Deployment
-		if db.Where(&Deployment{Port: strconv.Itoa(portTry)}).First(&deployment).RecordNotFound() {
+		var deployment mds.Deployment
+		if db.Where(&mds.Deployment{Port: strconv.Itoa(portTry)}).First(&deployment).RecordNotFound() {
 			return portTry
 		}
 	}
