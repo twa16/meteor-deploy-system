@@ -24,8 +24,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io/ioutil"
 )
 
 var cfgFile string
@@ -65,6 +67,15 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	//Read in session key if it exists
+	homeDirectory, _ := homedir.Dir()
+	tokenBytes, err := ioutil.ReadFile(homeDirectory + "/.mds-session")
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("No Session Found.")
+	}
+	viper.Set("AuthToken", string(tokenBytes))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -73,12 +84,18 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 
-	viper.SetConfigName(".mds-cli") // name of config file (without extension)
-	viper.AddConfigPath("$HOME")    // adding home directory as first search path
-	viper.AutomaticEnv()            // read in environment variables that match
+	homeDirectory, err := homedir.Dir()
+	if err != nil {
+		panic(err)
+	}
+	viper.SetConfigName(".mds-cli")    // name of config file (without extension)
+	viper.AddConfigPath(homeDirectory) // adding home directory as first search path
+	viper.AutomaticEnv()               // read in environment variables that match
 
+	viper.Set("HomeDirectory", homeDirectory)
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+
 }

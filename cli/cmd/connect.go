@@ -22,11 +22,21 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/spf13/viper"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/twa16/meteor-deploy-system/common"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // connectCmd represents the connect command
@@ -37,18 +47,75 @@ var connectCmd = &cobra.Command{
 	connect [hostname]
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
 		if len(args) == 0 {
 			fmt.Println("Please provide a host to connect to")
 			return
 		}
+		if viper.GetString("AuthToken") != "" {
+			fmt.Println("Session exists.")
+			return
+		}
 		fmt.Println("Attempting to connect to: " + args[0])
 		data := url.Values{}
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter Username: ")
-		text, _ := reader.ReadString('\n')
-		data.Set("username", text)
+
+		username, password := credentials()
+		data.Set("username", username)
+		data.Add("password", password)
+
+		login(args[0], data, false)
 	},
+}
+
+func credentials() (string, string) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter Username: ")
+	username, _ := reader.ReadString('\n')
+
+	fmt.Print("Enter Password: ")
+	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		panic("Failed to get password")
+	}
+	password := string(bytePassword)
+
+	return strings.TrimSpace(username), strings.TrimSpace(password)
+}
+
+func login(hostname string, data url.Values, secure bool) {
+	//Let's build the url
+	urlString := hostname + "/login"
+	//Check if the connection should be secure and prepend the proper protocol
+	if secure {
+		urlString = "https://" + urlString
+	} else {
+		urlString = "http://" + urlString
+	}
+	//Create the client
+	client := &http.Client{}
+	r, _ := http.NewRequest("POST", urlString, bytes.NewBufferString(data.Encode())) // <-- URL-encoded payload
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	//Send the data and get the response
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	//Get the body of the response as a string
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	//Convert the JSON into an AutenticationToken struct
+	var authenticationToken mds.AuthenticationToken
+	if err := json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
+		panic(err)
+	}
+	viper.Set("AuthenticationToken", authenticationToken.AuthenticationToken)
+	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", []byte(authenticationToken.AuthenticationToken), 0644)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Saved Session.")
 }
 
 func init() {
