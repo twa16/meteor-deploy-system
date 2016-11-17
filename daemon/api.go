@@ -140,6 +140,15 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Deleted")
 }
 
+// Checks authentication
+// Returns 0 if ok, 1 if unauthorized, 2 if expired session
+func checkAuthentication(db *gorm.DB, key string, permission string) int {
+	var authenticationKey AuthenticationKey
+	db.Where("authenticationtoken=?", key).Find(&authenticationKey).First(&authenticationKey)
+	db.Model(&authenticationKey).Related(&authenticationKey.Permissions)
+
+}
+
 func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	dClient = dockerParam
 	database = db
