@@ -83,7 +83,7 @@ func getUser(db *gorm.DB, username string) (mds.User, error) {
 	return user, err
 }
 
-func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string) {
+func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string, permissions []string) {
 	user := mds.User{}
 	user.FirstName = firstName
 	user.LastName = lastName
@@ -94,8 +94,12 @@ func createUser(db *gorm.DB, firstName string, lastName string, username string,
 	if err != nil {
 		log.Fatal("Error hashing password: %s \n", err)
 	} else {
-		log.Infof("Created User: %s", user.Username)
 		db.Create(&user)
+		for k, v := range permissions {
+			userPermission := mds.UserPermission{}
+			userPermission.
+		}
+		log.Infof("Created User: %s", user.Username)
 	}
 }
 
