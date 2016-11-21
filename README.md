@@ -14,6 +14,7 @@ The daemon process runs on the server that will host the applications themselves
 + Authentication tokens are created upon login and expire in 7 days
 
 **Deployment Process**
+
 1. The daemon receives a deployment request from an authorized user.
 
 2. The archive of the meteor application is deployed as a docker container on the machine.
