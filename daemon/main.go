@@ -93,7 +93,7 @@ func createUser(db *gorm.DB, firstName string, lastName string, username string,
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	user.PasswordHash = passwordHash
 	if err != nil {
-		log.Fatal("Error hashing password: %s \n", err)
+		log.Fatalf("Error hashing password: %s \n", err)
 	} else {
 		//Now let's create the permissions
 		for _, permissionString := range permissions {
@@ -121,9 +121,12 @@ func loadConfig() {
 	viper.SetConfigName("config")                   // name of config file (without extension)
 	viper.AddConfigPath("/etc/meteordeploysystem/") // path to look for the config file in
 	viper.AddConfigPath(".")                        // optionally look for config in the working directory
-	err := viper.ReadInConfig()                     // Find and read the config file
+	//Set defaults
+	viper.SetDefault("DataDirectory", "data")
+
+	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {
-		log.Fatal("Fatal error config file: %s \n", err) // Handle errors reading the config file
+		log.Fatalf("Fatal error config file: %s \n", err) // Handle errors reading the config file
 		panic(err)
 	}
 
