@@ -9,7 +9,6 @@ type AuthenticationToken struct {
 	AuthenticationToken string //Session key used to authorize requests
 	UserID              uint   //ID of user that this token belongs to
 	LastSeen            int64  //Linux time of last API Call
-	Permissions         UserPermission
 }
 
 // Represents a "deployment"
@@ -38,5 +37,5 @@ type User struct {
 type UserPermission struct {
 	gorm.Model
 	UserID     uint
-	permission string
+	Permission string
 }

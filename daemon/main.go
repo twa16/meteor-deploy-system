@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	math "math/rand"
+	"os"
+	"strconv"
+
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
@@ -11,9 +15,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/bcrypt"
-	math "math/rand"
-	"os"
-	"strconv"
 )
 
 var log = logging.MustGetLogger("mds-daemon")
@@ -70,7 +71,7 @@ func ensureAdminUser(db *gorm.DB) {
 	_, err := getUser(db, "admin")
 	if err != nil {
 		password, _ := GenerateRandomString(16)
-		createUser(db, "Admin", "User", "admin", "admin@company.com", password)
+		createUser(db, "Admin", "User", "admin", "admin@admin.com", password, []string{"*.*"})
 		log.Info("Created admin user with password: " + password)
 	} else {
 		log.Info("Admin user exists.")
@@ -94,11 +95,16 @@ func createUser(db *gorm.DB, firstName string, lastName string, username string,
 	if err != nil {
 		log.Fatal("Error hashing password: %s \n", err)
 	} else {
-		db.Create(&user)
-		for k, v := range permissions {
+		//Now let's create the permissions
+		for _, permissionString := range permissions {
+			//Create the permission object
 			userPermission := mds.UserPermission{}
-			userPermission.
+			userPermission.UserID = user.ID
+			userPermission.Permission = permissionString
+			//Add it to permissions
+			user.Permissions = append(user.Permissions, userPermission)
 		}
+		db.Create(&user)
 		log.Infof("Created User: %s", user.Username)
 	}
 }
