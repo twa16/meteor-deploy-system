@@ -10,12 +10,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+//NginxInstance Represents the nginx instance.
 type NginxInstance struct {
 	sitesAvailableDirectory string //Path to the sites-available directory
 	sitesEnabledDirectory   string //Path to the sites-enabled directory
 	reloadCommand           string //Command to execute when attempting to reload Nginx
 }
 
+//NginxProxyConfiguration contains the data that is used to configure a reverse proxy on Nginx
 type NginxProxyConfiguration struct {
 	gorm.Model
 	domainName      string

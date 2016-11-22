@@ -7,6 +7,7 @@ import (
 	math "math/rand"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
@@ -59,6 +60,9 @@ func main() {
 		panic("Failed to Connect to Docker: " + err.Error())
 	}
 	log.Info("Connected to Docker")
+
+	log.Info("Seeding random number generator...")
+	math.Seed(time.Now().UTC().UnixNano())
 
 	//=====Start API======
 	//createDeployment(cli, db, "First-Project", "/tmp/test")
@@ -208,10 +212,10 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	return &deployment, nil
 }
 
-func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentId uint) (*mds.Deployment, error) {
+func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {
 	//First, let's grab the deployment description from the DB
 	var deployment mds.Deployment
-	db.First(&deployment, deploymentId)
+	db.First(&deployment, deploymentID)
 
 	//Now let's grab the actual container
 	container, err := dClient.InspectContainer(deployment.ContainerID)
