@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -12,30 +13,32 @@ import (
 
 //NginxInstance Represents the nginx instance.
 type NginxInstance struct {
-	sitesAvailableDirectory string //Path to the sites-available directory
-	sitesEnabledDirectory   string //Path to the sites-enabled directory
-	reloadCommand           string //Command to execute when attempting to reload Nginx
+	SitesAvailableDirectory string //Path to the sites-available directory
+	SitesEnabledDirectory   string //Path to the sites-enabled directory
+	ReloadCommand           string //Command to execute when attempting to reload Nginx
 }
 
 //NginxProxyConfiguration contains the data that is used to configure a reverse proxy on Nginx
 type NginxProxyConfiguration struct {
 	gorm.Model
-	domainName      string
-	certificatePath string
-	privateKeyPath  string
-	destination     string
-	deploymentID    int
+	DomainName      string
+	CertificatePath string
+	PrivateKeyPath  string
+	Destination     string
+	DeploymentID    int
 }
 
-// Called when mds wishes to reload Nginx
-func (n *NginxInstance) applyChanges() error {
+//ApplyChanges Called when mds wishes to reload Nginx
+func (n *NginxInstance) ApplyChanges() error {
 	log.Warning("Reloading Nginx")
-	_, err := exec.Command(n.reloadCommand).Output()
+	_, err := exec.Command(n.ReloadCommand).Output()
 	return err
 }
 
-func (n *NginxInstance) createProxy(config *NginxProxyConfiguration) (string, error) {
+//CreateProxy creates a proxy configuration in Nginx
+func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration) (string, error) {
 	log.Infof("Creating Proxy for deployment %d", config.ID)
+	//Let's grab the template
 	templateBytes, err := ioutil.ReadFile(viper.GetString("DataDirectory") + "/site-nginx.template")
 	if err != nil {
 		return "", err
@@ -45,23 +48,51 @@ func (n *NginxInstance) createProxy(config *NginxProxyConfiguration) (string, er
 
 	//Build domain name
 	//domainName := config.domainName
-	domainName := generateCodename() + viper.GetString("UrlBase")
+	var domainName string
+	//Loop until a unique hostname is generated
+	for true {
+		domainName = GenerateCodename() + viper.GetString("UrlBase")
+		if IsDomainNameUnique(db, domainName) {
+			break
+		}
+	}
 	//Set the values in the configuration
 	configString := strings.Replace(templateString, "domainName", domainName, -1)
-	configString = strings.Replace(templateString, "certificatePath", config.certificatePath, -1)
-	configString = strings.Replace(templateString, "privateKeyPath", config.privateKeyPath, -1)
-	configString = strings.Replace(templateString, "destination", config.destination, -1)
+	configString = strings.Replace(templateString, "certificatePath", config.CertificatePath, -1)
+	configString = strings.Replace(templateString, "privateKeyPath", config.PrivateKeyPath, -1)
+	configString = strings.Replace(templateString, "destination", config.Destination, -1)
 
-	var fileName = n.sitesAvailableDirectory + "/MDS-" + string(config.ID) + ".conf"
+	//Write the template to a file to the sites-available directory
+	var fileName = n.SitesAvailableDirectory + "/MDS-" + string(config.ID) + ".conf"
 	err = ioutil.WriteFile(fileName, []byte(configString), 0644)
 	if err != nil {
+		return "", err
+	}
+
+	//Symlink the new config to sites-enabled
+	err = os.Symlink(fileName, n.SitesEnabledDirectory+"/MDS-"+string(config.ID)+".conf")
+	if err != nil {
+		log.Criticalf("Failed to create symlink for %s", fileName)
+		return "", err
+	}
+
+	//Reload Nginx
+	err = n.ApplyChanges()
+	if err != nil {
+		log.Criticalf("Failed to apply changes to Nginx")
 		return "", err
 	}
 
 	return domainName, nil
 }
 
-func generateCodename() string {
+//IsDomainNameUnique checks the database to see if the domain name is unique
+func IsDomainNameUnique(db *gorm.DB, domainName string) bool {
+	return db.Where(&NginxProxyConfiguration{DomainName: domainName}).RecordNotFound()
+}
+
+//GenerateCodename generates a twoword domain name that is built using the word list
+func GenerateCodename() string {
 	codename := ""
 	for i := 0; i < 2; i++ {
 		randInt := rand.Intn(len(mnemonicWords))
