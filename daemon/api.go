@@ -71,7 +71,7 @@ func handleLoginAttempt(username string, password string) (mds.AuthenticationTok
 
 // Called when /containers is called
 func getContainers(w http.ResponseWriter, r *http.Request) {
-	authCode := checkAuthentication(db, r.Header["X-Auth-Token"], "container.list")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "container.list")
 	if authCode == 0 {
 		containers, err := dClient.ListContainers(docker.ListContainersOptions{})
 		if err != nil {
@@ -94,7 +94,7 @@ func getContainers(w http.ResponseWriter, r *http.Request) {
 
 //Called when /deployments is called
 func getDeployments(w http.ResponseWriter, r *http.Request) {
-	authCode := checkAuthentication(db, r.Header["X-Auth-Token"], "deployment.list")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.list")
 	if authCode == 0 {
 		var deployments []mds.Deployment
 		database.Find(&deployments)
@@ -120,7 +120,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 
 //Called when DELETE /deployment is called an id should be passed as a query parameter
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
-	authCode := checkAuthentication(db, r.Header["X-Auth-Token"], "deployment.delete")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.delete")
 	if authCode == 0 {
 		//Process the query parameters
 		r.ParseForm()
