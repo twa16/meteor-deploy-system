@@ -1,14 +1,23 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jinzhu/gorm"
+	uuid "github.com/satori/go.uuid"
+	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
 	"goji.io"
 	"goji.io/pat"
@@ -67,6 +76,177 @@ func handleLoginAttempt(username string, password string) (mds.AuthenticationTok
 	//Save it and return it
 	database.Create(&token)
 	return token, nil
+}
+
+//CreateDeployment Called when POST /deployment is called
+func CreateDeployment(w http.ResponseWriter, r *http.Request) {
+	//Check authentication
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.create")
+	if authCode == 0 {
+		//Process the query parameters
+		r.ParseForm()
+
+		//Check if they sent a projectName
+		if len(r.Form["projectname"]) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Please provide a project name")
+			return
+		}
+		//Get the project name they want
+		projectName := r.Form["projectname"][0]
+
+		//Handle file upload t get the archive of the application
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("uploadfile")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		fmt.Fprintf(w, "%v", handler.Header)
+		f, err := ioutil.TempFile(os.TempDir(), GenerateCodename())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+		io.Copy(f, file)
+
+		//Decompress archive
+		//Get path to uploaded file
+		tempFilePath, err := filepath.Abs(filepath.Dir(f.Name()))
+		if err != nil {
+			log.Critical(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+		}
+		//Get destination directory
+		destination := GetNewApplicationDirectory()
+		//Extract the files
+		extractTarball(tempFilePath, destination)
+		//Start creating deployment
+		createDeployment(dClient, database, projectName, destination)
+		fmt.Fprintf(w, "")
+	} else if authCode == 2 {
+		//Unauthorized 401
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "Token Expired")
+	} else {
+		//Unauthorized 401
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "Unauthorized")
+	}
+}
+
+//GetNewApplicationDirectory Returns a new path for the application files.
+func GetNewApplicationDirectory() string {
+	var destination string
+	for i := 0; i < 100; i++ {
+		attempt := viper.GetString("ApplicationDirectory") + uuid.NewV4().String()
+		exists, err := pathExists(attempt)
+		if err != nil {
+			log.Warning(err)
+		}
+		if !exists {
+			destination = attempt
+		}
+	}
+	//Just a safegaurd. Die if you cannot create a new directory.
+	if destination == "" {
+		log.Fatal("Failed to create directory for application.")
+		panic("Could not create directory")
+	}
+
+	return destination
+}
+
+//Checks if a path exists
+func pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
+}
+
+//Used to extract the contents of the tarball that is produced by meteor
+func extractTarball(filePath string, destination string) {
+	file, err := os.Open(filePath)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	defer file.Close()
+
+	var fileReader io.ReadCloser = file
+
+	// just in case we are reading a tar.gz file, add a filter to handle gzipped file
+	if strings.HasSuffix(filePath, ".gz") {
+		if fileReader, err = gzip.NewReader(file); err != nil {
+
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer fileReader.Close()
+	}
+
+	tarBallReader := tar.NewReader(fileReader)
+
+	// Extracting tarred files
+
+	for {
+		header, err := tarBallReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// get the individual filename and extract to the current directory
+		filename := header.Name
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			// handle directory
+			fmt.Println("Creating directory :", filename)
+			err = os.MkdirAll(destination+"/"+filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+		case tar.TypeReg:
+			// handle normal file
+			fmt.Println("Untarring :", filename)
+			writer, err := os.Create(destination + "/" + filename)
+
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			io.Copy(writer, tarBallReader)
+
+			err = os.Chmod(destination+"/"+filename, os.FileMode(header.Mode))
+
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			writer.Close()
+		default:
+			fmt.Printf("Unable to untar type : %c in file %s", header.Typeflag, filename)
+		}
+	}
 }
 
 // Called when /containers is called
@@ -219,7 +399,12 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux.HandleFunc(pat.Get("/containers"), getContainers)
 	mux.HandleFunc(pat.Get("/deployments"), getDeployments)
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
+	mux.HandleFunc(pat.Post("/deployment"), CreateDeployment)
 	mux.HandleFunc(pat.Post("/login"), login)
+	mux.HandleFunc(pat.Post("/test"), func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("Content-Type", "application/octet-stream")
+		io.Copy(w, r.Body)
+	})
 
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }

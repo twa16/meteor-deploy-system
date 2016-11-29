@@ -1,0 +1,6 @@
+#This is where the data for the mds executable is stored such as the nginx templates
+DataDirectory: "./data"
+#This is the url that application domains will be built with. This must start with a dot(.)
+UrlBase: ".localhost"
+#This is the directory where application files will be stored
+ApplicationDirectory: "./apps"

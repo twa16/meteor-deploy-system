@@ -23,7 +23,6 @@ var log = logging.MustGetLogger("mds-daemon")
 func main() {
 	log.Info("Meteor Deploy System - Manuel Gauto (mgauto@mgenterprises.org)")
 	log.Info("Starting...")
-
 	//Setup logging format
 	var format = logging.MustStringFormatter(
 		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
@@ -31,6 +30,9 @@ func main() {
 	backend1 := logging.NewLogBackend(os.Stderr, "", 0)
 	backend1Formatter := logging.NewBackendFormatter(backend1, format)
 	logging.SetBackend(backend1Formatter)
+
+	//Load configuration
+	loadConfig()
 
 	//Database: Starting Connection
 	log.Info("Starting ORM...")
@@ -122,11 +124,13 @@ func startDockerClient() (*docker.Client, error) {
 }
 
 func loadConfig() {
-	viper.SetConfigName("config")                   // name of config file (without extension)
-	viper.AddConfigPath("/etc/meteordeploysystem/") // path to look for the config file in
-	viper.AddConfigPath(".")                        // optionally look for config in the working directory
+	viper.SetConfigName("config")                         // name of config file (without extension)
+	viper.AddConfigPath("./config")                       // path to look for the config file in
+	viper.AddConfigPath("/etc/meteordeploysystem/config") // path to look for the config file in
+	viper.AddConfigPath(".")                              // optionally look for config in the working directory
 	//Set defaults
-	viper.SetDefault("DataDirectory", "data")
+	viper.SetDefault("DataDirectory", "./data")
+	viper.SetDefault("ApplicationDirectory", "./apps")
 
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {
@@ -134,6 +138,10 @@ func loadConfig() {
 		panic(err)
 	}
 
+	log.Infof("Using config file: %s", viper.ConfigFileUsed())
+	for _, key := range viper.AllKeys() {
+		log.Infof("Loaded: %s as %s", key, viper.GetString(key))
+	}
 	//viper.SetDefault("k", "v")
 }
 
@@ -193,8 +201,11 @@ func removeContainer(client *docker.Client, id string) error {
 //Creates and starts a deployment
 // projectName cannot contain spaces
 func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*mds.Deployment, error) {
+	//Get a new port
 	var port = strconv.Itoa(getNextOpenPort(db))
+	//Create a deployment record
 	var deployment = mds.Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
+	//Create a docker container for the application
 	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
