@@ -10,8 +10,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
@@ -97,16 +95,17 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 
 		//Handle file upload t get the archive of the application
 		r.ParseMultipartForm(32 << 20)
-		file, handler, err := r.FormFile("uploadfile")
+		file, _, err := r.FormFile("uploadfile")
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		defer file.Close()
-		fmt.Fprintf(w, "%v", handler.Header)
 		f, err := ioutil.TempFile(os.TempDir(), GenerateCodename())
 		if err != nil {
-			fmt.Println(err)
+			log.Critical(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
 			return
 		}
 		defer f.Close()
@@ -114,16 +113,22 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 
 		//Decompress archive
 		//Get path to uploaded file
-		tempFilePath, err := filepath.Abs(filepath.Dir(f.Name()))
+		tempFilePath := f.Name()
 		if err != nil {
 			log.Critical(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "Internal Server Error")
+			return
 		}
 		//Get destination directory
 		destination := GetNewApplicationDirectory()
 		//Extract the files
-		extractTarball(tempFilePath, destination)
+		err = extractTarball(tempFilePath, destination)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Error Untaring: %s", err.Error())
+			return
+		}
 		//Start creating deployment
 		createDeployment(dClient, database, projectName, destination)
 		fmt.Fprintf(w, "")
@@ -173,27 +178,22 @@ func pathExists(path string) (bool, error) {
 }
 
 //Used to extract the contents of the tarball that is produced by meteor
-func extractTarball(filePath string, destination string) {
+func extractTarball(filePath string, destination string) error {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	defer file.Close()
 
 	var fileReader io.ReadCloser = file
 
-	// just in case we are reading a tar.gz file, add a filter to handle gzipped file
-	if strings.HasSuffix(filePath, ".gz") {
-		if fileReader, err = gzip.NewReader(file); err != nil {
-
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		defer fileReader.Close()
+	// We should be getting a gz file so decompress
+	if fileReader, err = gzip.NewReader(file); err != nil {
+		return err
 	}
+	defer fileReader.Close()
 
 	tarBallReader := tar.NewReader(fileReader)
 
@@ -205,8 +205,7 @@ func extractTarball(filePath string, destination string) {
 			if err == io.EOF {
 				break
 			}
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 
 		// get the individual filename and extract to the current directory
@@ -215,38 +214,54 @@ func extractTarball(filePath string, destination string) {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			// handle directory
-			fmt.Println("Creating directory :", filename)
+			//fmt.Println("Creating directory :", filename)
 			err = os.MkdirAll(destination+"/"+filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
 
 			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+				return err
 			}
 
 		case tar.TypeReg:
 			// handle normal file
-			fmt.Println("Untarring :", filename)
-			writer, err := os.Create(destination + "/" + filename)
+			//fmt.Println("Untarring :", filename)
+			writer, err := os.Create(destination + filename)
 
 			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+				return err
 			}
 
 			io.Copy(writer, tarBallReader)
 
-			err = os.Chmod(destination+"/"+filename, os.FileMode(header.Mode))
+			err = os.Chmod(destination+filename, os.FileMode(header.Mode))
 
 			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+				return err
+			}
+
+			writer.Close()
+		case tar.TypeLink:
+			//createSymlink
+			writer, err := os.Create(destination + filename)
+
+			if err != nil {
+				return err
+			}
+
+			io.Copy(writer, tarBallReader)
+
+			err = os.Chmod(destination+filename, os.FileMode(header.Mode))
+
+			if err != nil {
+				return err
 			}
 
 			writer.Close()
 		default:
 			fmt.Printf("Unable to untar type : %c in file %s", header.Typeflag, filename)
+			return errors.New("Unable to untar type")
 		}
 	}
+	return nil
 }
 
 // Called when /containers is called
@@ -357,7 +372,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 	//Get the auth token
 	var authenticationKey mds.AuthenticationToken
-	db.Where("authenticationtoken=?", key).Find(&authenticationKey).First(&authenticationKey)
+	db.Where("authentication_token=?", key).Find(&authenticationKey).First(&authenticationKey)
 
 	//If the token hasn't been used in a week. Force a relogin.
 	if (time.Now().Unix() - authenticationKey.LastSeen) > (60 * 60 * 24 * 7) {
@@ -401,10 +416,6 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
 	mux.HandleFunc(pat.Post("/deployment"), CreateDeployment)
 	mux.HandleFunc(pat.Post("/login"), login)
-	mux.HandleFunc(pat.Post("/test"), func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Set("Content-Type", "application/octet-stream")
-		io.Copy(w, r.Body)
-	})
 
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
