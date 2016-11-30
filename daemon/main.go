@@ -216,8 +216,13 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	var port = strconv.Itoa(getNextOpenPort(db))
 	//Create a deployment record
 	var deployment = mds.Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
+	//Save the record so it gets an ID
+	db.Create(&deployment)
+	nginxConfig := NginxProxyConfiguration{}
 	//Create a docker container for the application
-	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
+	//Filler values so I can test the proxy stuff.
+	//TODO: Load actual env variables
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "", "", "")
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err
@@ -230,7 +235,6 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	}
 	//If there was no error then the container is running
 	deployment.Status = "running"
-	db.Create(&deployment)
 	log.Info(deployment)
 	return &deployment, nil
 }

@@ -14,14 +14,14 @@ type AuthenticationToken struct {
 // Represents a "deployment"
 type Deployment struct {
 	gorm.Model
-	ProjectName  string //Name of this project
-	ownerID      uint   //ID of user that owns this project
-	VolumePath   string //Path to the folder that contains the meteor application on the hose
-	AutoStart    bool   //Should the container be started automatically
-	ContainerID  string //The ID of the container that contains the application
-	Port         string //Port that the application is listening on
-	Status       string //Status of the container, updated on inspect
-	allowedUsers []uint
+	ProjectName string //Name of this project
+	ownerID     uint   //ID of user that owns this project
+	VolumePath  string //Path to the folder that contains the meteor application on the hose
+	AutoStart   bool   //Should the container be started automatically
+	ContainerID string //The ID of the container that contains the application
+	Port        string //Port that the application is listening on
+	Status      string //Status of the container, updated on inspect
+	URL         string //URL used to reach the service. Blank until deployment is complete
 }
 
 type User struct {

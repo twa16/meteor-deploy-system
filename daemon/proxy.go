@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+
+	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
@@ -21,11 +25,12 @@ type NginxInstance struct {
 //NginxProxyConfiguration contains the data that is used to configure a reverse proxy on Nginx
 type NginxProxyConfiguration struct {
 	gorm.Model
-	DomainName      string
+	DomainName      string //Optional. Generated if not provided. Regenerated if not unique.
+	IsHTTPS         bool   //Required
 	CertificatePath string
 	PrivateKeyPath  string
-	Destination     string
-	DeploymentID    int
+	Destination     string //Required
+	DeploymentID    int    //Required
 }
 
 //ApplyChanges Called when mds wishes to reload Nginx
@@ -39,7 +44,13 @@ func (n *NginxInstance) ApplyChanges() error {
 func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration) (string, error) {
 	log.Infof("Creating Proxy for deployment %d", config.ID)
 	//Let's grab the template
-	templateBytes, err := ioutil.ReadFile(viper.GetString("DataDirectory") + "/site-nginx.template")
+	var templateFileName string
+	if config.IsHTTPS {
+		templateFileName = viper.GetString("DataDirectory") + "/https-site-nginx.template"
+	} else {
+		templateFileName = viper.GetString("DataDirectory") + "/http-site-nginx.template"
+	}
+	templateBytes, err := ioutil.ReadFile(templateFileName)
 	if err != nil {
 		return "", err
 	}
@@ -48,19 +59,16 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 
 	//Build domain name
 	//domainName := config.domainName
-	var domainName string
-	//Loop until a unique hostname is generated
-	for true {
-		domainName = GenerateCodename() + viper.GetString("UrlBase")
-		if IsDomainNameUnique(db, domainName) {
-			break
-		}
-	}
+	var domainName = config.DomainName
+
 	//Set the values in the configuration
 	configString := strings.Replace(templateString, "domainName", domainName, -1)
-	configString = strings.Replace(templateString, "certificatePath", config.CertificatePath, -1)
-	configString = strings.Replace(templateString, "privateKeyPath", config.PrivateKeyPath, -1)
 	configString = strings.Replace(templateString, "destination", config.Destination, -1)
+	//Set HTTPS options if necessary
+	if config.IsHTTPS {
+		configString = strings.Replace(templateString, "certificatePath", config.CertificatePath, -1)
+		configString = strings.Replace(templateString, "privateKeyPath", config.PrivateKeyPath, -1)
+	}
 
 	//Write the template to a file to the sites-available directory
 	var fileName = n.SitesAvailableDirectory + "/MDS-" + string(config.ID) + ".conf"
@@ -86,9 +94,34 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	return domainName, nil
 }
 
+//GenerateNewURL Generates a new URL to be used by an application
+func GenerateNewUniqueURL(db *gorm.DB) string {
+	//Loop until a unique hostname is generated
+	for true {
+		domainName := GenerateCodename() + viper.GetString("UrlBase")
+		if IsDomainNameUnique(db, domainName) {
+			return domainName
+		}
+	}
+	//This should never happen
+	return "ERROR"
+}
+
 //IsDomainNameUnique checks the database to see if the domain name is unique
 func IsDomainNameUnique(db *gorm.DB, domainName string) bool {
 	return db.Where(&NginxProxyConfiguration{DomainName: domainName}).RecordNotFound()
+}
+
+//TODO: Finish Implementation of this
+func autocertSetup() {
+	m := autocert.Manager{
+		Prompt: autocert.AcceptTOS,
+	}
+	s := &http.Server{
+		Addr:      ":https",
+		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
+	}
+	s.ListenAndServeTLS("", "")
 }
 
 //GenerateCodename generates a twoword domain name that is built using the word list
