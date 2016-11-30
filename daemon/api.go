@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -122,7 +123,13 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//Get destination directory
-		destination := GetNewApplicationDirectory()
+		destination, err := GetNewApplicationDirectory()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Error creating new application directory: %s", err.Error())
+			return
+		}
 		//Extract the files
 		err = extractTarball(tempFilePath, destination)
 		if err != nil {
@@ -145,7 +152,7 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 }
 
 //GetNewApplicationDirectory Returns a new path for the application files.
-func GetNewApplicationDirectory() string {
+func GetNewApplicationDirectory() (string, error) {
 	var destination string
 	for i := 0; i < 100; i++ {
 		attempt := viper.GetString("ApplicationDirectory") + uuid.NewV4().String()
@@ -163,7 +170,13 @@ func GetNewApplicationDirectory() string {
 		panic("Could not create directory")
 	}
 
-	return destination
+	//Make sure the path is a full path
+	volumePath, err := filepath.Abs(destination)
+	if err != nil {
+		log.Criticalf("Failed to expand path: %s", destination)
+		return "", err
+	}
+	return volumePath, nil
 }
 
 //Checks if a path exists
