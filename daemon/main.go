@@ -63,6 +63,10 @@ func main() {
 	}
 	log.Info("Connected to Docker")
 
+	log.Info("Pulling needed images")
+	PullDockerImage(cli, "kadirahq/meteord")
+	log.Info("Images Pulled")
+
 	log.Info("Seeding random number generator...")
 	math.Seed(time.Now().UTC().UnixNano())
 
@@ -209,6 +213,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
+		return nil, err
 	}
 	deployment.ContainerID = container.ID
 	err = dClient.StartContainer(container.ID, nil)
@@ -221,6 +226,14 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	db.Create(&deployment)
 	log.Info(deployment)
 	return &deployment, nil
+}
+
+//PullDockerImage Pulls a docker image from the hub
+func PullDockerImage(dClient *docker.Client, image string) error {
+	pullOptions := docker.PullImageOptions{Repository: image, Tag: "latest"}
+	authOptions := docker.AuthConfiguration{}
+	err := dClient.PullImage(pullOptions, authOptions)
+	return err
 }
 
 func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {

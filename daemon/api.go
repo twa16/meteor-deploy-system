@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
@@ -179,6 +180,10 @@ func pathExists(path string) (bool, error) {
 
 //Used to extract the contents of the tarball that is produced by meteor
 func extractTarball(filePath string, destination string) error {
+	//Add a trailing slash if needed
+	if !strings.HasSuffix(destination, "/") {
+		destination += "/"
+	}
 	file, err := os.Open(filePath)
 
 	if err != nil {
@@ -215,7 +220,7 @@ func extractTarball(filePath string, destination string) error {
 		case tar.TypeDir:
 			// handle directory
 			//fmt.Println("Creating directory :", filename)
-			err = os.MkdirAll(destination+"/"+filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+			err = os.MkdirAll(destination+filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
 
 			if err != nil {
 				return err
@@ -239,7 +244,7 @@ func extractTarball(filePath string, destination string) error {
 			}
 
 			writer.Close()
-		case tar.TypeLink:
+		case tar.TypeSymlink:
 			//createSymlink
 			writer, err := os.Create(destination + filename)
 
