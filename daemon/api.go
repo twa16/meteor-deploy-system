@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -103,25 +102,6 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer file.Close()
-		f, err := ioutil.TempFile(os.TempDir(), GenerateCodename())
-		if err != nil {
-			log.Critical(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
-			return
-		}
-		defer f.Close()
-		io.Copy(f, file)
-
-		//Decompress archive
-		//Get path to uploaded file
-		tempFilePath := f.Name()
-		if err != nil {
-			log.Critical(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
-			return
-		}
 		//Get destination directory
 		destination, err := GetNewApplicationDirectory()
 		if err != nil {
@@ -130,13 +110,33 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 			log.Criticalf("Error creating new application directory: %s", err.Error())
 			return
 		}
-		//Extract the files
-		err = extractTarball(tempFilePath, destination)
+		//Copy tarball to volume
+		//Create destination
+		desFile, err := os.Create(destination + "/application.tar.gz")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Error Untaring: %s", err.Error())
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to create destination file(%s): %s", destination, err.Error())
 			return
 		}
+		defer desFile.Close()
+		//Copy content
+		_, err = io.Copy(desFile, file)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
+			return
+		}
+		//Sync
+		err = desFile.Sync()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
+			return
+		}
+
 		//Start creating deployment
 		createDeployment(dClient, database, projectName, destination)
 		fmt.Fprintf(w, "")
@@ -174,6 +174,12 @@ func GetNewApplicationDirectory() (string, error) {
 	volumePath, err := filepath.Abs(destination)
 	if err != nil {
 		log.Criticalf("Failed to expand path: %s", destination)
+		return "", err
+	}
+	//Create directory
+	err = os.Mkdir(volumePath, 0774)
+	if err != nil {
+		log.Criticalf("Failed to create directory: %s", destination)
 		return "", err
 	}
 	return volumePath, nil

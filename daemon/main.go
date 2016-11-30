@@ -153,7 +153,7 @@ func loadConfig() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *docker.Client, volumePath string, externalPort string) (*docker.Container, error) {
+func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string) (*docker.Container, error) {
 	//======Container Config=====
 	var containerConfig docker.Config
 	//Set the image
@@ -166,6 +166,13 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	//port80, _ := nat.NewPort("tcp", "80")
 	containerConfig.ExposedPorts = make(map[docker.Port]struct{})
 	containerConfig.ExposedPorts["80/tcp"] = v
+	//Environmental Variables
+	//Format is a slice of strings FOO=BAR
+	env := make([]string, 3)
+	env[0] = "ROOT_URL=" + rootURL
+	env[1] = "MONGO_URL=" + mongoURL
+	env[2] = "MONGO_OPLOG_URL=" + mongoOplogURL
+	containerConfig.Env = env
 
 	//=====Host Config======
 	//Setup Volume Bindings
