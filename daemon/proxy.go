@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -17,9 +16,8 @@ import (
 
 //NginxInstance Represents the nginx instance.
 type NginxInstance struct {
-	SitesAvailableDirectory string //Path to the sites-available directory
-	SitesEnabledDirectory   string //Path to the sites-enabled directory
-	ReloadCommand           string //Command to execute when attempting to reload Nginx
+	SitesDirectory string //Path to the sites-enabled directory
+	ReloadCommand  string //Command to execute when attempting to reload Nginx
 }
 
 //NginxProxyConfiguration contains the data that is used to configure a reverse proxy on Nginx
@@ -71,16 +69,9 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	}
 
 	//Write the template to a file to the sites-available directory
-	var fileName = n.SitesAvailableDirectory + "/MDS-" + string(config.ID) + ".conf"
+	var fileName = n.SitesDirectory + "MDS-" + string(config.ID) + ".conf"
 	err = ioutil.WriteFile(fileName, []byte(configString), 0644)
 	if err != nil {
-		return "", err
-	}
-
-	//Symlink the new config to sites-enabled
-	err = os.Symlink(fileName, n.SitesEnabledDirectory+"/MDS-"+string(config.ID)+".conf")
-	if err != nil {
-		log.Criticalf("Failed to create symlink for %s", fileName)
 		return "", err
 	}
 

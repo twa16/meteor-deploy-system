@@ -19,6 +19,7 @@ import (
 )
 
 var log = logging.MustGetLogger("mds-daemon")
+var nginx NginxInstance
 
 func main() {
 	log.Info("Meteor Deploy System - Manuel Gauto (mgauto@mgenterprises.org)")
@@ -55,6 +56,11 @@ func main() {
 
 	//Ensure admin user exists
 	ensureAdminUser(db)
+
+	//Setup Nginx
+	nginx = NginxInstance{}
+	nginx.ReloadCommand = viper.GetString("NginxReloadCommand")
+	nginx.SitesDirectory = viper.GetString("NginxSitesDestination")
 
 	//Docker: Starting Docker Client
 	log.Info("Connecting to Docker")
@@ -250,6 +256,8 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 		log.Critical("Failed to start container: " + err.Error())
 		return nil, err
 	}
+	log.Debugf("Creating nginx proxy for %s", projectName)
+	nginx.CreateProxy(db, &nginxConfig)
 	//If there was no error then the container is running
 	deployment.Status = "running"
 	log.Info(deployment)
