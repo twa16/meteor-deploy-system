@@ -30,7 +30,7 @@ type NginxProxyConfiguration struct {
 	CertificatePath string
 	PrivateKeyPath  string
 	Destination     string //Required
-	DeploymentID    int    //Required
+	DeploymentID    uint   //Required
 }
 
 //ApplyChanges Called when mds wishes to reload Nginx
@@ -94,11 +94,19 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	return domainName, nil
 }
 
+func ReserveDomainName(db *gorm.DB) NginxProxyConfiguration {
+	nginxConfig := NginxProxyConfiguration{}
+	nginxConfig.DomainName = GenerateNewUniqueURL(db)
+	db.Create(&nginxConfig)
+	return nginxConfig
+}
+
 //GenerateNewURL Generates a new URL to be used by an application
 func GenerateNewUniqueURL(db *gorm.DB) string {
 	//Loop until a unique hostname is generated
 	for true {
 		domainName := GenerateCodename() + viper.GetString("UrlBase")
+		log.Debugf("Generated Domain Name: %s", domainName)
 		if IsDomainNameUnique(db, domainName) {
 			return domainName
 		}
@@ -109,7 +117,8 @@ func GenerateNewUniqueURL(db *gorm.DB) string {
 
 //IsDomainNameUnique checks the database to see if the domain name is unique
 func IsDomainNameUnique(db *gorm.DB, domainName string) bool {
-	return db.Where(&NginxProxyConfiguration{DomainName: domainName}).RecordNotFound()
+	log.Debugf("Result of unqiue check for %s is %b\n", domainName, db.Where(&NginxProxyConfiguration{DomainName: domainName}).RecordNotFound())
+	return db.Where(&NginxProxyConfiguration{DomainName: domainName}).First(&NginxProxyConfiguration{}).RecordNotFound()
 }
 
 //TODO: Finish Implementation of this

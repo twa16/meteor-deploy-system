@@ -138,7 +138,7 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//Start creating deployment
-		createDeployment(dClient, database, projectName, destination)
+		createDeployment(dClient, database, projectName, destination, r.Form["settings"][0])
 		fmt.Fprintf(w, "")
 	} else if authCode == 2 {
 		//Unauthorized 401

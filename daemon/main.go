@@ -50,6 +50,7 @@ func main() {
 	//db.Model(&mds.User{}).Related(&mds.UserPermission{})
 	db.AutoMigrate(&mds.User{})
 	db.AutoMigrate(&mds.AuthenticationToken{})
+	db.AutoMigrate(&NginxProxyConfiguration{})
 	log.Info("Migration Complete")
 
 	//Ensure admin user exists
@@ -63,8 +64,8 @@ func main() {
 	}
 	log.Info("Connected to Docker")
 
-	log.Info("Pulling needed images")
-	PullDockerImage(cli, "kadirahq/meteord")
+	log.Info("Pulling needed images (This can take a while the first time)...")
+	PullDockerImage(cli, "abernix/meteord")
 	log.Info("Images Pulled")
 
 	log.Info("Seeding random number generator...")
@@ -153,11 +154,11 @@ func loadConfig() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string) (*docker.Container, error) {
+func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string, meteorSettings string) (*docker.Container, error) {
 	//======Container Config=====
 	var containerConfig docker.Config
 	//Set the image
-	containerConfig.Image = "kadirahq/meteord"
+	containerConfig.Image = "abernix/meteord"
 	//Create the volume that will contain the app code
 	containerConfig.Volumes = make(map[string]struct{})
 	var v struct{}
@@ -168,10 +169,14 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	containerConfig.ExposedPorts["80/tcp"] = v
 	//Environmental Variables
 	//Format is a slice of strings FOO=BAR
-	env := make([]string, 3)
+	env := make([]string, 4)
 	env[0] = "ROOT_URL=" + rootURL
 	env[1] = "MONGO_URL=" + mongoURL
-	env[2] = "MONGO_OPLOG_URL=" + mongoOplogURL
+	if meteorSettings != "" {
+		env[2] = "METEOR_SETTINGS=" + meteorSettings
+	}
+	//TODO: Enable this
+	//env[2] = "MONGO_OPLOG_URL=" + mongoOplogURL
 	containerConfig.Env = env
 
 	//=====Host Config======
@@ -211,18 +216,30 @@ func removeContainer(client *docker.Client, id string) error {
 
 //Creates and starts a deployment
 // projectName cannot contain spaces
-func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string) (*mds.Deployment, error) {
+func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string, meteorSettings string) (*mds.Deployment, error) {
+	log.Debugf("Deployment Creation Started for %s\n", projectName)
 	//Get a new port
 	var port = strconv.Itoa(getNextOpenPort(db))
+	log.Debugf("Using port: %s\n", port)
 	//Create a deployment record
 	var deployment = mds.Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
 	//Save the record so it gets an ID
 	db.Create(&deployment)
-	nginxConfig := NginxProxyConfiguration{}
+	log.Debugf("Deployment Created and Saved\n")
+	//This reserves a domainName and initializes an NginxProxyConfiguration
+	nginxConfig := ReserveDomainName(db)
+	log.Debugf("Domain Name Reserved: %s", nginxConfig.DomainName)
+	//TODO: Actually allow https
+	nginxConfig.IsHTTPS = false
+	//Set the deploymentID
+	nginxConfig.DeploymentID = deployment.ID
+	//Set the destination
+	nginxConfig.Destination = "http://127.0.0.1:" + port
 	//Create a docker container for the application
 	//Filler values so I can test the proxy stuff.
-	//TODO: Load actual env variables
-	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "", "", "")
+	//TODO: Set MongoDB stuffs
+	log.Debugf("Starting Docker Container\n")
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, "mongodb://172.30.111.63", "mongodb://172.30.111.63/local", meteorSettings)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err

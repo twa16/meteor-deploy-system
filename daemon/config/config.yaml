@@ -4,3 +4,7 @@ DataDirectory: "./data/"
 UrlBase: ".localhost"
 #This is the directory where application files will be stored
 ApplicationDirectory: "./apps/"
+#If set to true MDS will automatically provision mongodb. All other mongodb url settings are ignored.
+AutoManageMongoDB: true
+MongoDBURL: mongodb://127.0.0.1
+MongoDBOpsLog: mongodb://127.0.0.1
