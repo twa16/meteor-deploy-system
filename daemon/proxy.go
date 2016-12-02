@@ -34,7 +34,7 @@ type NginxProxyConfiguration struct {
 //ApplyChanges Called when mds wishes to reload Nginx
 func (n *NginxInstance) ApplyChanges() error {
 	log.Warning("Reloading Nginx")
-	_, err := exec.Command(n.ReloadCommand).Output()
+	_, err := exec.Command("sudo", "/usr/local/bin/brew", "services", "reload", "nginx").Output()
 	return err
 }
 
@@ -60,16 +60,16 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	var domainName = config.DomainName
 
 	//Set the values in the configuration
-	configString := strings.Replace(templateString, "domainName", domainName, -1)
-	configString = strings.Replace(templateString, "destination", config.Destination, -1)
+	configString := strings.Replace(templateString, "{{domainName}}", domainName, -1)
+	configString = strings.Replace(configString, "{{destination}}", config.Destination, -1)
 	//Set HTTPS options if necessary
 	if config.IsHTTPS {
-		configString = strings.Replace(templateString, "certificatePath", config.CertificatePath, -1)
-		configString = strings.Replace(templateString, "privateKeyPath", config.PrivateKeyPath, -1)
+		configString = strings.Replace(configString, "{{certificatePath}}", config.CertificatePath, -1)
+		configString = strings.Replace(configString, "{{privateKeyPath}}", config.PrivateKeyPath, -1)
 	}
 
 	//Write the template to a file to the sites-available directory
-	var fileName = n.SitesDirectory + "MDS-" + string(config.ID) + ".conf"
+	var fileName = n.SitesDirectory + "MDS-" + domainName + ".conf"
 	err = ioutil.WriteFile(fileName, []byte(configString), 0644)
 	if err != nil {
 		return "", err

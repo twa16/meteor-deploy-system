@@ -252,12 +252,17 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	}
 	deployment.ContainerID = container.ID
 	err = dClient.StartContainer(container.ID, nil)
+	log.Debugf("Container created: %s\n", container.ID)
 	if err != nil {
 		log.Critical("Failed to start container: " + err.Error())
 		return nil, err
 	}
 	log.Debugf("Creating nginx proxy for %s", projectName)
-	nginx.CreateProxy(db, &nginxConfig)
+	_, err = nginx.CreateProxy(db, &nginxConfig)
+	if err != nil {
+		log.Critical("Error Creating Proxy: " + err.Error())
+		return nil, err
+	}
 	//If there was no error then the container is running
 	deployment.Status = "running"
 	log.Info(deployment)

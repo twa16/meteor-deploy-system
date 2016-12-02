@@ -6,7 +6,7 @@ UrlBase: ".localhost"
 ApplicationDirectory: "./apps/"
 #This is where Nginx stores its configs
 NginxSitesDestination: "/usr/local/etc/nginx/servers/"
-NginxReloadCommand: "brew services reload nginx"
+NginxReloadCommand: "/usr/local/bin/brew services reload nginx"
 #If set to true MDS will automatically provision mongodb. All other mongodb url settings are ignored.
 AutoManageMongoDB: true
 MongoDBURL: mongodb://127.0.0.1
