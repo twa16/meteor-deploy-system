@@ -34,7 +34,7 @@ type NginxProxyConfiguration struct {
 //ApplyChanges Called when mds wishes to reload Nginx
 func (n *NginxInstance) ApplyChanges() error {
 	log.Warning("Reloading Nginx")
-	_, err := exec.Command("sudo", "/usr/local/bin/brew", "services", "reload", "nginx").Output()
+	_, err := exec.Command("/usr/local/bin/brew", "services", "reload", "nginx").Output()
 	return err
 }
 
@@ -92,7 +92,7 @@ func ReserveDomainName(db *gorm.DB) NginxProxyConfiguration {
 	return nginxConfig
 }
 
-//GenerateNewURL Generates a new URL to be used by an application
+//GenerateNewUniqueURL Generates a new URL to be used by an application
 func GenerateNewUniqueURL(db *gorm.DB) string {
 	//Loop until a unique hostname is generated
 	for true {

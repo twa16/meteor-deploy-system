@@ -1,10 +1,9 @@
 # read more here http://tautt.com/best-nginx-configuration-for-security/
 
 # don't send the nginx version number in error pages and Server header
-server_tokens off;
 
 server {
-  listen 80;
+  listen 8080;
   server_name {{domainName}};
   location / {
 

@@ -245,7 +245,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//Filler values so I can test the proxy stuff.
 	//TODO: Set MongoDB stuffs
 	log.Debugf("Starting Docker Container\n")
-	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, "mongodb://172.30.111.63", "mongodb://172.30.111.63/local", meteorSettings)
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, viper.GetString("MongoDBURL"), viper.GetString("MongoDBOpsLog"), meteorSettings)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err
