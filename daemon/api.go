@@ -138,8 +138,14 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//Get custom environmental Variables
+		data := r.Header["X-Env-Var"]
+		customEnvironmentalVariables := make([]string, 1)
+		for _, entry := range data {
+			log.Debugf("Got custom environmental variable: %s", entry)
+			customEnvironmentalVariables = append(customEnvironmentalVariables, entry)
+		}
 		//Start creating deployment
-		createDeployment(dClient, database, projectName, destination, r.Form["settings"][0])
+		createDeployment(dClient, database, projectName, destination, r.Form["settings"][0], customEnvironmentalVariables)
 		fmt.Fprintf(w, "")
 	} else if authCode == 2 {
 		//Unauthorized 401
@@ -443,11 +449,9 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux.HandleFunc(pat.Post("/login"), login)
 	mux.HandleFunc(pat.Get("/test"), func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		data := r.Form["environmental_variables"]
-		fmt.Println(data)
+		data := r.Header["X-Env-Var"]
 		for _, entry := range data {
-			fmt.Println(entry)
-			fmt.Fprintf(w, entry)
+			fmt.Fprintf(w, entry+"\n")
 		}
 	})
 

@@ -160,7 +160,7 @@ func loadConfig() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string, meteorSettings string) (*docker.Container, error) {
+func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string, meteorSettings string, environment []string) (*docker.Container, error) {
 	//======Container Config=====
 	var containerConfig docker.Config
 	//Set the image
@@ -175,11 +175,15 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	containerConfig.ExposedPorts["80/tcp"] = v
 	//Environmental Variables
 	//Format is a slice of strings FOO=BAR
-	env := make([]string, 4)
+	env := make([]string, 3)
 	env[0] = "ROOT_URL=" + rootURL
 	env[1] = "MONGO_URL=" + mongoURL
 	if meteorSettings != "" {
 		env[2] = "METEOR_SETTINGS=" + meteorSettings
+	}
+	//Append all custom variables
+	for _, variable := range environment {
+		env = append(env, variable)
 	}
 	//TODO: Enable this
 	//env[2] = "MONGO_OPLOG_URL=" + mongoOplogURL
@@ -222,7 +226,7 @@ func removeContainer(client *docker.Client, id string) error {
 
 //Creates and starts a deployment
 // projectName cannot contain spaces
-func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string, meteorSettings string) (*mds.Deployment, error) {
+func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string, meteorSettings string, environment []string) (*mds.Deployment, error) {
 	log.Debugf("Deployment Creation Started for %s\n", projectName)
 	//Get a new port
 	var port = strconv.Itoa(getNextOpenPort(db))
@@ -245,7 +249,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//Filler values so I can test the proxy stuff.
 	//TODO: Set MongoDB stuffs
 	log.Debugf("Starting Docker Container\n")
-	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, viper.GetString("MongoDBURL"), viper.GetString("MongoDBOpsLog"), meteorSettings)
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, viper.GetString("MongoDBURL"), viper.GetString("MongoDBOpsLog"), meteorSettings, environment)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err

@@ -9,5 +9,5 @@ NginxSitesDestination: "/usr/local/etc/nginx/servers/"
 NginxReloadCommand: "/usr/local/bin/brew services reload nginx"
 #If set to true MDS will automatically provision mongodb. All other mongodb url settings are ignored.
 AutoManageMongoDB: false
-MongoDBURL: mongodb://10.159.17.175
+MongoDBURL: mongodb://172.30.111.63
 MongoDBOpsLog:
