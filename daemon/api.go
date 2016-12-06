@@ -138,7 +138,7 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//Get custom environmental Variables
-		data := r.Header["X-Env-Var"]
+		data := r.Form["Env-Var"]
 		customEnvironmentalVariables := make([]string, 1)
 		for _, entry := range data {
 			log.Debugf("Got custom environmental variable: %s", entry)

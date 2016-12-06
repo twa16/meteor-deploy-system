@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	math "math/rand"
 	"os"
 	"strconv"
@@ -76,6 +77,15 @@ func main() {
 
 	log.Info("Seeding random number generator...")
 	math.Seed(time.Now().UTC().UnixNano())
+
+	//Start Deployment Monitor
+	go func(dClient *docker.Client, db *gorm.DB) {
+		log.Info("Started Deployment Monitor")
+		for true {
+			InspectDeployments(dClient, db)
+			time.Sleep(time.Second * 5)
+		}
+	}(cli, db)
 
 	//=====Start API======
 	//createDeployment(cli, db, "First-Project", "/tmp/test")
@@ -269,7 +279,9 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	}
 	//If there was no error then the container is running
 	deployment.Status = "running"
-	log.Info(deployment)
+	//Save deployment Info
+	fmt.Println(deployment.ContainerID)
+	db.Save(&deployment)
 	return &deployment, nil
 }
 
@@ -281,20 +293,36 @@ func PullDockerImage(dClient *docker.Client, image string) error {
 	return err
 }
 
+func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
+	var deployments []mds.Deployment
+	database.Find(&deployments)
+	for _, deployment := range deployments {
+		inspectResult, err := inspectDeployment(dClient, database, deployment.ID)
+		if err != nil {
+			log.Warning(err)
+		}
+		if inspectResult.Status != deployment.Status {
+			log.Info("Update Deployment %s to status %s from %s\n", deployment.ID, &inspectResult.Status, deployment.Status)
+		}
+		db.Save(&inspectResult)
+	}
+}
+
 func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {
 	//First, let's grab the deployment description from the DB
 	var deployment mds.Deployment
 	db.First(&deployment, deploymentID)
 
-	//Now let's grab the actual container
-	container, err := dClient.InspectContainer(deployment.ContainerID)
-	if err != nil {
-		return nil, err
+	if deployment.ContainerID != "" {
+		//Now let's grab the actual container
+		container, err := dClient.InspectContainer(deployment.ContainerID)
+		if err != nil {
+			return nil, err
+		}
+		//Save the status
+		deployment.Status = container.State.Status
+		db.Save(&deployment)
 	}
-	//Save the status
-	deployment.Status = container.State.Status
-	db.Save(&deployment)
-
 	return &deployment, nil
 }
 
