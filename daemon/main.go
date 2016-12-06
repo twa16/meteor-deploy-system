@@ -94,7 +94,7 @@ func main() {
 }
 
 func ensureAdminUser(db *gorm.DB) {
-	log.Info("Checking is admin user exists.")
+	log.Info("Checking if admin user exists.")
 	_, err := getUser(db, "admin")
 	if err != nil {
 		password, _ := GenerateRandomString(16)
@@ -302,7 +302,7 @@ func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 			log.Warning(err)
 		}
 		if inspectResult.Status != deployment.Status {
-			log.Info("Update Deployment %s to status %s from %s\n", deployment.ID, &inspectResult.Status, deployment.Status)
+			log.Infof("Update Deployment %s to status %s from %s\n", deployment.ID, inspectResult.Status, deployment.Status)
 		}
 		db.Save(&inspectResult)
 	}
