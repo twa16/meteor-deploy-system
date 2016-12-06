@@ -137,6 +137,7 @@ func CreateDeployment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		//Get custom environmental Variables
 		//Start creating deployment
 		createDeployment(dClient, database, projectName, destination, r.Form["settings"][0])
 		fmt.Fprintf(w, "")
@@ -440,6 +441,15 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
 	mux.HandleFunc(pat.Post("/deployment"), CreateDeployment)
 	mux.HandleFunc(pat.Post("/login"), login)
+	mux.HandleFunc(pat.Get("/test"), func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		data := r.Form["environmental_variables"]
+		fmt.Println(data)
+		for _, entry := range data {
+			fmt.Println(entry)
+			fmt.Fprintf(w, entry)
+		}
+	})
 
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
