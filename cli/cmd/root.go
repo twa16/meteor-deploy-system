@@ -21,14 +21,22 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+
+	"io/ioutil"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io/ioutil"
 )
+
+//SessionRecord Used to store the session.
+type SessionRecord struct {
+	Hostname string
+	Token    string
+}
 
 var cfgFile string
 
@@ -63,19 +71,25 @@ func init() {
 	// Cobra supports Persistent Flags, which, if defined here,
 	// will be global for your application.
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cli.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.mds-cli.yaml)")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 	//Read in session key if it exists
 	homeDirectory, _ := homedir.Dir()
-	tokenBytes, err := ioutil.ReadFile(homeDirectory + "/.mds-session")
+	sessionRecordBytes, err := ioutil.ReadFile(homeDirectory + "/.mds-session")
 	if err != nil {
-		fmt.Println(err)
 		fmt.Println("No Session Found.")
 	}
-	viper.Set("AuthToken", string(tokenBytes))
+	sessionRecord := SessionRecord{}
+	err = json.Unmarshal(sessionRecordBytes, &sessionRecord)
+	if err != nil {
+		fmt.Printf("Invalid Session Record. Please delete %s\n", homeDirectory+"/.mds-session")
+		return
+	}
+	viper.Set("AuthenticationToken", sessionRecord.Token)
+	viper.Set("ServerHostname", sessionRecord.Hostname)
 }
 
 // initConfig reads in config file and ENV variables if set.

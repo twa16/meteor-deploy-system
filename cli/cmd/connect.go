@@ -25,7 +25,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -33,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/spf13/viper"
 
 	"github.com/spf13/cobra"
 	"github.com/twa16/meteor-deploy-system/common"
@@ -107,15 +108,19 @@ func login(hostname string, data url.Values, secure bool) {
 	buf.ReadFrom(resp.Body)
 	//Convert the JSON into an AutenticationToken struct
 	var authenticationToken mds.AuthenticationToken
-	if err := json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
+	if err = json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
 		panic(err)
 	}
 	viper.Set("AuthenticationToken", authenticationToken.AuthenticationToken)
-	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", []byte(authenticationToken.AuthenticationToken), 0644)
+	sessionRecord := SessionRecord{}
+	sessionRecord.Token = authenticationToken.AuthenticationToken
+	sessionRecord.Hostname = hostname
+	sessionRecordJSON, _ := json.Marshal(sessionRecord)
+	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", sessionRecordJSON, 0644)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Saved Session.")
+	fmt.Println("\nSaved Session.")
 }
 
 func init() {

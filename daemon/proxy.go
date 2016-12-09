@@ -85,6 +85,7 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	return domainName, nil
 }
 
+//ReserveDomainName Reserves a domain name in the DB by creating an unaffiliated NginxConfig
 func ReserveDomainName(db *gorm.DB) NginxProxyConfiguration {
 	nginxConfig := NginxProxyConfiguration{}
 	nginxConfig.DomainName = GenerateNewUniqueURL(db)

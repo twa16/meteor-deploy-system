@@ -293,6 +293,7 @@ func PullDockerImage(dClient *docker.Client, image string) error {
 	return err
 }
 
+//InspectDeployments Inspects all deployments and stores updated status in database
 func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 	var deployments []mds.Deployment
 	database.Find(&deployments)
