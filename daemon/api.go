@@ -442,7 +442,7 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	database = db
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/ping"), ping)
-	mux.HandleFunc(pat.Get("/containers"), getContainers)
+	//mux.HandleFunc(pat.Get("/containers"), getContainers)
 	mux.HandleFunc(pat.Get("/deployments"), getDeployments)
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
 	mux.HandleFunc(pat.Post("/deployment"), CreateDeployment)
