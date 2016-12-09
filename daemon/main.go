@@ -249,6 +249,8 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//This reserves a domainName and initializes an NginxProxyConfiguration
 	nginxConfig := ReserveDomainName(db)
 	log.Debugf("Domain Name Reserved: %s", nginxConfig.DomainName)
+	//set URL on deployment
+	deployment.URL = nginxConfig.DomainName
 	//TODO: Actually allow https
 	nginxConfig.IsHTTPS = false
 	//Set the deploymentID
