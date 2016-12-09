@@ -81,15 +81,16 @@ func init() {
 	sessionRecordBytes, err := ioutil.ReadFile(homeDirectory + "/.mds-session")
 	if err != nil {
 		fmt.Println("No Session Found.")
+	} else {
+		sessionRecord := SessionRecord{}
+		err = json.Unmarshal(sessionRecordBytes, &sessionRecord)
+		if err != nil {
+			fmt.Printf("Invalid Session Record. Please delete %s\n", homeDirectory+"/.mds-session")
+			return
+		}
+		viper.Set("AuthenticationToken", sessionRecord.Token)
+		viper.Set("ServerHostname", sessionRecord.Hostname)
 	}
-	sessionRecord := SessionRecord{}
-	err = json.Unmarshal(sessionRecordBytes, &sessionRecord)
-	if err != nil {
-		fmt.Printf("Invalid Session Record. Please delete %s\n", homeDirectory+"/.mds-session")
-		return
-	}
-	viper.Set("AuthenticationToken", sessionRecord.Token)
-	viper.Set("ServerHostname", sessionRecord.Hostname)
 }
 
 // initConfig reads in config file and ENV variables if set.

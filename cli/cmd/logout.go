@@ -16,36 +16,41 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-// serverCmd represents the server command
-var serverCmd = &cobra.Command{
-	Use:   "server",
-	Short: "Displays information about configured server",
-	Long:  `This command shows information about the server the client is connected to.`,
+// logoutCmd represents the logout command
+var logoutCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Deletes any saved login information.",
+	Long:  `Deletes any saved sessions that mds-cli has stored.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: Work your own magic here
-		color.Cyan("==========Server Information==========")
-		fmt.Printf("Hostname: %s\n", viper.GetString("ServerHostname"))
-		color.Cyan("======================================")
+		homeDirectory, _ := homedir.Dir()
+		err := os.Remove(homeDirectory + "/.mds-session")
+		if err != nil {
+			fmt.Println("Error deleting saved session.")
+			fmt.Println(err)
+		}
+		color.Red("Session deleted.")
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(serverCmd)
+	RootCmd.AddCommand(logoutCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// logoutCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// logoutCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }
