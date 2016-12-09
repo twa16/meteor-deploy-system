@@ -115,6 +115,7 @@ func login(hostname string, data url.Values, secure bool) {
 	sessionRecord := SessionRecord{}
 	sessionRecord.Token = authenticationToken.AuthenticationToken
 	sessionRecord.Hostname = hostname
+	sessionRecord.UseHTTPS = secure
 	sessionRecordJSON, _ := json.Marshal(sessionRecord)
 	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", sessionRecordJSON, 0644)
 	if err != nil {

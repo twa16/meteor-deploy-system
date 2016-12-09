@@ -15,9 +15,14 @@
 package cmd
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
+	"net/http"
 
+	"github.com/k0kubun/pp"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/twa16/meteor-deploy-system/common"
 )
 
 // listCmd represents the list command
@@ -32,7 +37,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: Work your own magic here
-		fmt.Println("list called")
+		getDeployments()
 	},
 }
 
@@ -49,4 +54,34 @@ func init() {
 	// is called directly, e.g.:
 	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
+}
+
+func getDeployments() {
+	//Let's build the url
+	urlString := viper.GetString("ServerHostname") + "/deployments"
+	//Check if the connection should be secure and prepend the proper protocol
+	if viper.GetBool("UseHTTPS") {
+		urlString = "https://" + urlString
+	} else {
+		urlString = "http://" + urlString
+	}
+	//Create the client
+	client := &http.Client{}
+	r, _ := http.NewRequest("GET", urlString, nil) // <-- URL-encoded payload
+	r.Header.Add("X-Auth-Token", viper.GetString("AuthenticationToken"))
+
+	//Send the data and get the response
+	resp, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}
+	//Get the body of the response as a string
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	//Convert the JSON into an AutenticationToken struct
+	var deployment []mds.Deployment
+	if err = json.Unmarshal(buf.Bytes(), &deployment); err != nil {
+		panic(err)
+	}
+	pp.Println(deployment)
 }

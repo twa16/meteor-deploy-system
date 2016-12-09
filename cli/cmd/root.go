@@ -36,6 +36,7 @@ import (
 type SessionRecord struct {
 	Hostname string
 	Token    string
+	UseHTTPS bool
 }
 
 var cfgFile string
@@ -90,6 +91,7 @@ func init() {
 		}
 		viper.Set("AuthenticationToken", sessionRecord.Token)
 		viper.Set("ServerHostname", sessionRecord.Hostname)
+		viper.Set("UseHTTPS", sessionRecord.UseHTTPS)
 	}
 }
 
