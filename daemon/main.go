@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	math "math/rand"
 	"os"
 	"strconv"
@@ -282,7 +281,6 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//If there was no error then the container is running
 	deployment.Status = "running"
 	//Save deployment Info
-	fmt.Println(deployment.ContainerID)
 	db.Save(&deployment)
 	return &deployment, nil
 }
