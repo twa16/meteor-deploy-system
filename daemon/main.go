@@ -72,6 +72,7 @@ func main() {
 
 	log.Info("Pulling needed images (This can take a while the first time)...")
 	PullDockerImage(cli, "abernix/meteord")
+	PullDockerImage(cli, "mongo")
 	log.Info("Images Pulled")
 
 	log.Info("Seeding random number generator...")
@@ -169,7 +170,7 @@ func loadConfig() {
 // hostname = Name of the container
 // volumePath = Directory that contains the meteor application
 // externalPort = external port to assign to the container, will be proxied
-func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string, meteorSettings string, environment []string) (*docker.Container, error) {
+func createDockerContainer(client *docker.Client, volumePath string, externalPort string, rootURL string, mongoURL string, mongoOplogURL string, meteorSettings string, environment []string, mongoContainer *docker.Container) (*docker.Container, error) {
 	//======Container Config=====
 	var containerConfig docker.Config
 	//Set the image
@@ -192,7 +193,9 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	}
 	//Append all custom variables
 	for _, variable := range environment {
-		env = append(env, variable)
+		if variable != "" {
+			env = append(env, variable)
+		}
 	}
 	//TODO: Enable this
 	//env[2] = "MONGO_OPLOG_URL=" + mongoOplogURL
@@ -206,6 +209,10 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	//Forward a dynamic host port to container. Listen on localhost so that nginx can proxy.
 	hostConfig.PortBindings = make(map[docker.Port][]docker.PortBinding)
 	hostConfig.PortBindings["80/tcp"] = append(hostConfig.PortBindings["80/tcp"], docker.PortBinding{HostIP: "127.0.0.1", HostPort: externalPort})
+	//Link mongo container if necessary. The proper URLs will already be set if this is provided.
+	if mongoContainer != nil {
+		hostConfig.Links = []string{mongoContainer.ID + ":mongo"}
+	}
 
 	//======Network Config=====
 	var networkConfig docker.NetworkingConfig
@@ -256,11 +263,39 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	nginxConfig.DeploymentID = deployment.ID
 	//Set the destination
 	nginxConfig.Destination = "http://127.0.0.1:" + port
+	//Prepare MongoDB Stuff
+	mongoURL := "mongodb://mongo"
+	mongoOpsLogURL := ""
+	var mongoContainer *docker.Container
+	//Check to see if the application is set manage mongo
+	if viper.GetBool("AutoManageMongoDB") {
+		//Create a new mongo instance
+		mongoContainerInstance, err := CreateMongoDBDockerContainer(dClient)
+		//This tells the compilier that we intentionally are shadowing the variable's intitial value.
+		mongoContainer = mongoContainerInstance
+		//Set the ID of the mongo container
+		deployment.MongoContainerID = mongoContainer.ID
+		//Now we start the MongoDB container
+		err = dClient.StartContainer(mongoContainer.ID, nil)
+		log.Debugf("MognoDB Container created: %s\n", mongoContainer.ID)
+		if err != nil {
+			log.Critical("Failed to start MongoDB container: " + err.Error())
+			return nil, err
+		}
+
+		if err != nil {
+			log.Criticalf("Failed to create MongoDB container: %s\n", err.Error())
+			return nil, err
+		}
+	} else {
+		//If the application isn't set to manage mongo then set the urls to what is in the config
+		mongoURL = viper.GetString("MongoDBURL")
+		mongoOpsLogURL = viper.GetString("MongoDBOpsLog")
+	}
+
 	//Create a docker container for the application
-	//Filler values so I can test the proxy stuff.
-	//TODO: Set MongoDB stuffs
 	log.Debugf("Starting Docker Container\n")
-	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, viper.GetString("MongoDBURL"), viper.GetString("MongoDBOpsLog"), meteorSettings, environment)
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, mongoURL, mongoOpsLogURL, meteorSettings, environment, mongoContainer)
 	if err != nil {
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err
