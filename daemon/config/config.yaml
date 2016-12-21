@@ -1,6 +1,6 @@
 # Provider to use for certificates. Valid values are: selfsigned and letsencrypt
 CertProvider: "selfsigned"
-
+CertDestination: /usr/local/etc/nginx/ssl/
 #Info that is used for certificates when 'selfsigned' provider is used
 CertOrganization: "MDS Autodeploy"
 CertOrganizationalUnit: "Automation Group"

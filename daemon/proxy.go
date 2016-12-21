@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/acme/autocert"
@@ -66,6 +67,19 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	if config.IsHTTPS {
 		configString = strings.Replace(configString, "{{certificatePath}}", config.CertificatePath, -1)
 		configString = strings.Replace(configString, "{{privateKeyPath}}", config.PrivateKeyPath, -1)
+		log.Infof("Generating RSA Keys\n")
+		privateKey, certificate, err := CreateSelfSignedCertificate(domainName)
+		if err != nil {
+			return "", err
+		}
+		err = WriteCertificateToFile(certificate, config.CertificatePath)
+		if err != nil {
+			return "", err
+		}
+		err = WritePrivateKeyToFile(privateKey, config.PrivateKeyPath)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	//Write the template to a file to the sites-available directory
@@ -83,6 +97,16 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	}
 
 	return domainName, nil
+}
+
+func (n *NginxInstance) GenerateHTTPSSettings(config *NginxProxyConfiguration) *NginxProxyConfiguration {
+	certificatePath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".cer"
+	privateKeyPath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".key"
+
+	config.CertificatePath = certificatePath
+	config.PrivateKeyPath = privateKeyPath
+	config.IsHTTPS = true
+	return config
 }
 
 //ReserveDomainName Reserves a domain name in the DB by creating an unaffiliated NginxConfig
