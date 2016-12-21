@@ -23,9 +23,6 @@ type Deployment struct {
 	Status           string //Status of the container, updated on inspect
 	URL              string //URL used to reach the service. Blank until deployment is complete
 	MongoContainerID string //The ID of the container that is running this app's mongo instance
-	IsHTTPS          bool   //True if the deployment is HTTPS enabled
-	PrivateKeyPath   string //Path to the private key used for HTTPS
-	CertificatePath  string //Path to the certificate used for HTTPS
 }
 
 type User struct {
