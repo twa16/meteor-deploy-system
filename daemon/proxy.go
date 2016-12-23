@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"io/ioutil"
 	"math/rand"
@@ -67,19 +68,27 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	if config.IsHTTPS {
 		configString = strings.Replace(configString, "{{certificatePath}}", config.CertificatePath, -1)
 		configString = strings.Replace(configString, "{{privateKeyPath}}", config.PrivateKeyPath, -1)
-		log.Infof("Generating RSA Keys\n")
-		privateKey, certificate, err := CreateSelfSignedCertificate(domainName)
-		if err != nil {
-			return "", err
+		var privateKey *rsa.PrivateKey
+		var certificate []byte
+
+		//Check which way to get certs
+		if viper.GetString("CertProvider") == "selfsigned" {
+			log.Infof("Generating RSA Keys with 'selfsigned' provider\n")
+			privateKey, certificate, err = CreateSelfSignedCertificate(domainName)
+			if err != nil {
+				return "", err
+			}
+			log.Info("Persisting generated key material")
+			err = WriteCertificateToFile(certificate, config.CertificatePath)
+			if err != nil {
+				return "", err
+			}
+			err = WritePrivateKeyToFile(privateKey, config.PrivateKeyPath)
+			if err != nil {
+				return "", err
+			}
 		}
-		err = WriteCertificateToFile(certificate, config.CertificatePath)
-		if err != nil {
-			return "", err
-		}
-		err = WritePrivateKeyToFile(privateKey, config.PrivateKeyPath)
-		if err != nil {
-			return "", err
-		}
+		//TODO: handle use of letsencrypt
 	}
 
 	//Write the template to a file to the sites-available directory
