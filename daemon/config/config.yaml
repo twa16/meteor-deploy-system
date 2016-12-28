@@ -15,10 +15,14 @@ DataDirectory: "./data/"
 UrlBase: ".localtest.me"
 #This is the directory where application files will be stored
 ApplicationDirectory: "./apps/"
-#This is where Nginx stores its configs
-NginxSitesDestination: "/usr/local/etc/nginx/servers/"
-NginxReloadCommand: "/usr/local/bin/brew services reload nginx"
 #If set to true MDS will automatically provision mongodb. All other mongodb url settings are ignored.
 AutoManageMongoDB: true
 MongoDBURL: mongodb://172.30.111.63
 MongoDBOpsLog:
+#This is where Nginx stores its configs
+NginxSitesDestination: "/usr/local/etc/nginx/servers/"
+NginxReloadCommand:
+  - /usr/local/bin/brew
+  - services
+  - reload
+  - nginx

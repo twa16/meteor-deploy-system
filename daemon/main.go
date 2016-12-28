@@ -150,6 +150,7 @@ func startDockerClient() (*docker.Client, error) {
 	return cli, err
 }
 
+//loadConfig I bet you can guess what this function does
 func loadConfig() {
 	viper.SetConfigName("config")                         // name of config file (without extension)
 	viper.AddConfigPath("./config")                       // path to look for the config file in
@@ -235,7 +236,7 @@ func createDockerContainer(client *docker.Client, volumePath string, externalPor
 	return c, err
 }
 
-//Removes a container
+//removeContainer Removes a container
 func removeContainer(client *docker.Client, id string) error {
 	var options docker.RemoveContainerOptions
 	options.ID = id
@@ -251,7 +252,7 @@ func removeContainer(client *docker.Client, id string) error {
 func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string, meteorSettings string, environment []string) (*mds.Deployment, error) {
 	log.Debugf("Deployment Creation Started for %s\n", projectName)
 	//Get a new port
-	var port = strconv.Itoa(getNextOpenPort(db))
+	var port = strconv.Itoa(GetNextOpenPort(db))
 	log.Debugf("Using port: %s\n", port)
 	//Create a deployment record
 	var deployment = mds.Deployment{VolumePath: applicationDirectory, AutoStart: true, Port: port, ProjectName: projectName}
@@ -264,7 +265,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	//set URL on deployment
 	deployment.URL = nginxConfig.DomainName
 	//TODO: Actually allow https
-	nginxConfig.IsHTTPS = false
+	nginxConfig.IsHTTPS = true
 	//Set the deploymentID
 	nginxConfig.DeploymentID = deployment.ID
 	//Set the destination
@@ -273,7 +274,7 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	mongoURL := "mongodb://mongo"
 	mongoOpsLogURL := ""
 	var mongoContainer *docker.Container
-	//Check to see if the application is set manage mongo
+	//Check to see if the daemon is set manage mongo
 	if viper.GetBool("AutoManageMongoDB") {
 		//Create a new mongo instance
 		mongoContainerInstance, err := CreateMongoDBDockerContainer(dClient)
@@ -312,6 +313,11 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	if err != nil {
 		log.Critical("Failed to start container: " + err.Error())
 		return nil, err
+	}
+	//Generate HTTPS settings if needed
+	if nginxConfig.IsHTTPS {
+		log.Infof("Generating HTTPS configuration for %s\n", projectName)
+		nginxConfig = nginx.GenerateHTTPSSettings(nginxConfig)
 	}
 	log.Debugf("Creating nginx proxy for %s", projectName)
 	_, err = nginx.CreateProxy(db, &nginxConfig)
@@ -368,7 +374,9 @@ func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (
 	return &deployment, nil
 }
 
-func getNextOpenPort(db *gorm.DB) int {
+//GetNextOpenPort Generates an available port. This checks against the DB but does not reserve it
+// so technically, conflicts are possible.
+func GetNextOpenPort(db *gorm.DB) int {
 	for true {
 		var portTry = 30000 + math.Intn(10000)
 		var deployment mds.Deployment

@@ -64,6 +64,7 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	//Set the values in the configuration
 	configString := strings.Replace(templateString, "{{domainName}}", domainName, -1)
 	configString = strings.Replace(configString, "{{destination}}", config.Destination, -1)
+
 	//Set HTTPS options if necessary
 	if config.IsHTTPS {
 		configString = strings.Replace(configString, "{{certificatePath}}", config.CertificatePath, -1)
@@ -108,7 +109,7 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	return domainName, nil
 }
 
-func (n *NginxInstance) GenerateHTTPSSettings(config *NginxProxyConfiguration) *NginxProxyConfiguration {
+func (n *NginxInstance) GenerateHTTPSSettings(config NginxProxyConfiguration) NginxProxyConfiguration {
 	certificatePath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".cer"
 	privateKeyPath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".key"
 
