@@ -55,7 +55,7 @@ func main() {
 	log.Info("Migration Complete")
 
 	log.Info("Creating Neccessary Directories.")
-	err = os.MkdirAll(viper.GetString("CertDestination"), 0644)
+	err = os.MkdirAll(viper.GetString("CertDestination"), 0777)
 	if err != nil {
 		panic(err)
 	}

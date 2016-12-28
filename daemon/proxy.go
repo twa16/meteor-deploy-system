@@ -36,7 +36,9 @@ type NginxProxyConfiguration struct {
 //ApplyChanges Called when mds wishes to reload Nginx
 func (n *NginxInstance) ApplyChanges() error {
 	log.Warning("Reloading Nginx")
-	_, err := exec.Command("/usr/local/bin/brew", "services", "reload", "nginx").Output()
+	commandParts := viper.GetStringSlice("NginxReloadCommand")
+	cmd := exec.Command(commandParts[0], commandParts[1:len(commandParts)]...)
+	_, err := cmd.Output()
 	return err
 }
 

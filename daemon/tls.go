@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"path/filepath"
 )
 
 func pemBlockForKey(priv *rsa.PrivateKey) *pem.Block {
@@ -57,7 +58,12 @@ func CreateSelfSignedCertificate(host string) (*rsa.PrivateKey, []byte, error) {
 }
 
 func WriteCertificateToFile(certificate []byte, filePath string) error {
-	certOut, err := os.Create(filePath)
+	certPath, err := filepath.Abs(filePath)
+	if err != nil {
+		log.Criticalf("Failed to expand path: %s", filePath)
+		return err
+	}
+	certOut, err := os.Create(certPath)
 	if err != nil {
 		return err
 	}
@@ -67,7 +73,12 @@ func WriteCertificateToFile(certificate []byte, filePath string) error {
 }
 
 func WritePrivateKeyToFile(key *rsa.PrivateKey, filePath string) error {
-	keyOut, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	certPath, err := filepath.Abs(filePath)
+	if err != nil {
+		log.Criticalf("Failed to expand path: %s", filePath)
+		return err
+	}
+	keyOut, err := os.OpenFile(certPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
