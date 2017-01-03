@@ -3,3 +3,4 @@ test/
 daemon/daemon
 daemon/mds.db
 daemon/apps/
+daemon/ssl/
