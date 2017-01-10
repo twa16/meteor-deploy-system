@@ -7,7 +7,7 @@ RUN gem install pkgr
 
 RUN useradd -s /usr/sbin/nologin -u 120 jenkins
 RUN usermod -aG sudo jenkins
-RUN cat 'jenkins  ALL=NOPASSWD: ALL' > /etc/sudoers.d/jenkins
+RUN echo 'jenkins  ALL=NOPASSWD: ALL' > /etc/sudoers.d/jenkins
 #RUN mkdir /work
 #WORKDIR /work
 #RUN git clone https://github.com/twa16/meteor-deploy-system.git
