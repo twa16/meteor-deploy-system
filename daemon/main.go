@@ -99,6 +99,7 @@ func main() {
 	startAPI(cli, db)
 }
 
+//Ensures that an admin account exists and creates one if needed
 func ensureAdminUser(db *gorm.DB) {
 	log.Info("Checking if admin user exists.")
 	_, err := getUser(db, "admin")
@@ -111,12 +112,14 @@ func ensureAdminUser(db *gorm.DB) {
 	}
 }
 
+//Gets a user object from the db by username
 func getUser(db *gorm.DB, username string) (mds.User, error) {
 	var user mds.User
 	err := db.Where("username = ?", username).First(&user).Error
 	return user, err
 }
 
+//Creates a user in the DB
 func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string, permissions []string) {
 	user := mds.User{}
 	user.FirstName = firstName
@@ -142,6 +145,7 @@ func createUser(db *gorm.DB, firstName string, lastName string, username string,
 	}
 }
 
+//Starts the connect to the docker daemon
 func startDockerClient() (*docker.Client, error) {
 	cli, err := docker.NewClientFromEnv()
 	if err != nil {
@@ -356,6 +360,7 @@ func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 	}
 }
 
+//Internal call that checks the status of a deployment and updates the DB
 func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {
 	//First, let's grab the deployment description from the DB
 	var deployment mds.Deployment
