@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/pkg/errors"
 )
 
 var log = logging.MustGetLogger("mds-daemon")
@@ -344,7 +345,7 @@ func PullDockerImage(dClient *docker.Client, image string) error {
 	return err
 }
 
-//InspectDeployments Inspects all deployments and stores updated status in database
+//InspectDeployments Inspects all deployments and stores updated status in database.
 func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 	var deployments []mds.Deployment
 	database.Find(&deployments)
@@ -377,6 +378,35 @@ func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (
 		db.Save(&deployment)
 	}
 	return &deployment, nil
+}
+
+func DeleteDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) error {
+	//First, get the deployment object
+	deployment := mds.Deployment{}
+	resp := db.First(&deployment, deploymentID)
+	if resp.RecordNotFound() {
+		return errors.New("Deployment not found")
+	}
+
+	//Let's delete the nginx proxy config
+	nginx.DeleteProxyConfiguration(db, deployment.URL)
+
+
+	//Stop the container
+	err := dClient.StopContainer(deployment.ContainerID, 10)
+	if err != nil {
+		log.Warning(err)
+	}
+	//Remove the container
+	//This method sets the volume remove flag as well
+	err = removeContainer(dClient, deployment.ContainerID)
+	if err != nil {
+		log.Warning(err)
+	}
+
+	//Delete Record
+	db.Delete(&deployment)
+	return nil
 }
 
 //GetNextOpenPort Generates an available port. This checks against the DB but does not reserve it
