@@ -346,6 +346,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 
 //Called when DELETE /deployment is called an id should be passed as a query parameter
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
+	//TODO: Tear this apart and redo it
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.delete")
 	if authCode == 0 {
 		//Process the query parameters

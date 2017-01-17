@@ -14,6 +14,8 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/spf13/viper"
+	"errors"
+	"os"
 )
 
 //NginxInstance Represents the nginx instance.
@@ -31,6 +33,7 @@ type NginxProxyConfiguration struct {
 	PrivateKeyPath  string
 	Destination     string //Required
 	DeploymentID    uint   //Required
+	ConfigurationFilePath string
 }
 
 //ApplyChanges Called when mds wishes to reload Nginx
@@ -96,6 +99,8 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 
 	//Write the template to a file to the sites-available directory
 	var fileName = n.SitesDirectory + "MDS-" + domainName + ".conf"
+	//Save the path to the config
+	config.ConfigurationFilePath = fileName
 	err = ioutil.WriteFile(fileName, []byte(configString), 0644)
 	if err != nil {
 		return "", err
@@ -109,6 +114,26 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 	}
 
 	return domainName, nil
+}
+
+func (n *NginxInstance) DeleteProxyConfiguration(db *gorm.DB, domainName string) error {
+	//Let's get the details about this proxy
+	nginxConfig := NginxProxyConfiguration{}
+	resp := db.Where("DomainName = ?", domainName).First(nginxConfig)
+	//Throw an error if the configuration was not found
+	if resp.RecordNotFound() {
+		return errors.New("No proxy with that domain name was found")
+	}
+	//Remove the config file
+	os.Remove(nginxConfig.ConfigurationFilePath)
+	//Remove the key material if the site is https
+	if nginxConfig.IsHTTPS {
+		os.Remove(nginxConfig.CertificatePath)
+		os.Remove(nginxConfig.PrivateKeyPath)
+	}
+	//Finally, remove the config itself
+	db.Delete(&nginxConfig)
+	return nil
 }
 
 func (n *NginxInstance) GenerateHTTPSSettings(config NginxProxyConfiguration) NginxProxyConfiguration {
