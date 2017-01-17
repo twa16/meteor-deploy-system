@@ -1,0 +1,24 @@
+{
+  "name": "mds-daemon",
+  "maintainer": "Manuel Gauto <mgauto@mgenterprises.com>",
+  "description": "Daemon portion of the Meteor Deployment System. Allows the deployment of meteor applications.",
+  "homepage": "http://github.com/twa16/meteor-deploy-system",
+  "files": [
+    {
+      "from": "build/!arch!/!name!",
+      "to": "/usr/bin",
+      "base" : "build/!arch!/",
+      "fperm": "0755"
+    }
+  ],
+  "copyrights": [
+    {
+      "files": "*",
+      "copyright": "2016 Manuel Gauto <mgauto@mgenterprises.org>",
+      "license": "MIT",
+      "file": "LICENSE"
+    }
+  ],
+  "package-type": "deb",
+  "init-file": "deb/mds-daemon-service.sh"
+}

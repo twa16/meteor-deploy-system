@@ -1,0 +1,29 @@
+# Provider to use for certificates. Valid values are: selfsigned and letsencrypt
+CertProvider: "selfsigned"
+# Destination directory for certificates. Relative paths are expanded.
+CertDestination: ./ssl
+#Info that is used for certificates when 'selfsigned' provider is used
+CertOrganization: "MDS Autodeploy"
+CertOrganizationalUnit: "Automation Group"
+CertLocality: "Arlington"
+CertProvince: "Virginia"
+CertCountry: "US"
+#How many days the certificate should be valid
+CertValidity: 365
+#This is where the data for the mds executable is stored such as the nginx templates
+DataDirectory: "./data/"
+#This is the url that application domains will be built with. This must start with a dot(.)
+UrlBase: ".localtest.me"
+#This is the directory where application files will be stored
+ApplicationDirectory: "./apps/"
+#If set to true MDS will automatically provision mongodb. All other mongodb url settings are ignored.
+AutoManageMongoDB: true
+MongoDBURL: mongodb://172.30.111.63
+MongoDBOpsLog:
+#This is where Nginx stores its configs
+NginxSitesDestination: "/usr/local/etc/nginx/servers/"
+NginxReloadCommand:
+  - /usr/local/bin/brew
+  - services
+  - reload
+  - nginx

@@ -154,7 +154,7 @@ func startDockerClient() (*docker.Client, error) {
 func loadConfig() {
 	viper.SetConfigName("config")                         // name of config file (without extension)
 	viper.AddConfigPath("./config")                       // path to look for the config file in
-	viper.AddConfigPath("/etc/meteordeploysystem/config") // path to look for the config file in
+	viper.AddConfigPath("/etc/mds/config") // path to look for the config file in
 	viper.AddConfigPath(".")                              // optionally look for config in the working directory
 	//Set defaults
 	viper.SetDefault("DataDirectory", "./data")
@@ -350,7 +350,7 @@ func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 			log.Warning(err)
 		}
 		if inspectResult.Status != deployment.Status {
-			log.Infof("Update Deployment %s to status %s from %s\n", deployment.ID, inspectResult.Status, deployment.Status)
+			log.Infof("Update Deployment %d to status %s from %s\n", deployment.ID, inspectResult.Status, deployment.Status)
 		}
 		db.Save(&inspectResult)
 	}

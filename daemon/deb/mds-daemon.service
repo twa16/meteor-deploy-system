@@ -1,0 +1,10 @@
+[Unit]
+Description=mds-service
+
+[Service]
+User=mds
+Group=mds
+ExecStart=/usr/bin/mds-daemon
+
+[Install]
+WantedBy=multi-user.target
