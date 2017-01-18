@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
@@ -27,6 +24,12 @@ var sessionExpireTime = 3600 //Session expire time in seconds
 
 var dClient *docker.Client
 var database *gorm.DB
+
+const (
+	CreateDeploymentPermission = "deployment.create"
+	ListDeploymentPermission = "deployment.list"
+	DeleteDeploymentPermission = "deployment.delete"
+)
 
 func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "PONG")
@@ -78,9 +81,9 @@ func handleLoginAttempt(username string, password string) (mds.AuthenticationTok
 }
 
 //CreateDeployment Called when POST /deployment is called
-func CreateDeployment(w http.ResponseWriter, r *http.Request) {
+func createDeploymentEndpoint(w http.ResponseWriter, r *http.Request) {
 	//Check authentication
-	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.create")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], CreateDeploymentPermission)
 	if authCode == 0 {
 		//Process the query parameters
 		r.ParseForm()
@@ -204,123 +207,9 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-//Used to extract the contents of the tarball that is produced by meteor
-func extractTarball(filePath string, destination string) error {
-	//Add a trailing slash if needed
-	if !strings.HasSuffix(destination, "/") {
-		destination += "/"
-	}
-	file, err := os.Open(filePath)
-
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	var fileReader io.ReadCloser = file
-
-	// We should be getting a gz file so decompress
-	if fileReader, err = gzip.NewReader(file); err != nil {
-		return err
-	}
-	defer fileReader.Close()
-
-	tarBallReader := tar.NewReader(fileReader)
-
-	// Extracting tarred files
-
-	for {
-		header, err := tarBallReader.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-
-		// get the individual filename and extract to the current directory
-		filename := header.Name
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			// handle directory
-			//fmt.Println("Creating directory :", filename)
-			err = os.MkdirAll(destination+filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
-
-			if err != nil {
-				return err
-			}
-
-		case tar.TypeReg:
-			// handle normal file
-			//fmt.Println("Untarring :", filename)
-			writer, err := os.Create(destination + filename)
-
-			if err != nil {
-				return err
-			}
-
-			io.Copy(writer, tarBallReader)
-
-			err = os.Chmod(destination+filename, os.FileMode(header.Mode))
-
-			if err != nil {
-				return err
-			}
-
-			writer.Close()
-		case tar.TypeSymlink:
-			//createSymlink
-			writer, err := os.Create(destination + filename)
-
-			if err != nil {
-				return err
-			}
-
-			io.Copy(writer, tarBallReader)
-
-			err = os.Chmod(destination+filename, os.FileMode(header.Mode))
-
-			if err != nil {
-				return err
-			}
-
-			writer.Close()
-		default:
-			fmt.Printf("Unable to untar type : %c in file %s", header.Typeflag, filename)
-			return errors.New("Unable to untar type")
-		}
-	}
-	return nil
-}
-
-// Called when /containers is called
-func getContainers(w http.ResponseWriter, r *http.Request) {
-	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "container.list")
-	if authCode == 0 {
-		containers, err := dClient.ListContainers(docker.ListContainersOptions{})
-		if err != nil {
-			log.Critical(err)
-			fmt.Fprintf(w, "Error getting containers")
-		} else {
-			jsonResponseBytes, _ := json.Marshal(containers)
-			fmt.Fprintf(w, string(jsonResponseBytes))
-		}
-	} else if authCode == 2 {
-		//Unauthorized 401
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Token Expired")
-	} else {
-		//Unauthorized 401
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Unauthorized")
-	}
-}
-
 //Called when /deployments is called
 func getDeployments(w http.ResponseWriter, r *http.Request) {
-	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.list")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
 	if authCode == 0 {
 		var deployments []mds.Deployment
 		database.Find(&deployments)
@@ -347,7 +236,7 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 //Called when DELETE /deployment is called an id should be passed as a query parameter
 func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 	//TODO: Tear this apart and redo it
-	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], "deployment.delete")
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], DeleteDeploymentPermission)
 	if authCode == 0 {
 		//Process the query parameters
 		r.ParseForm()
@@ -446,7 +335,7 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	//mux.HandleFunc(pat.Get("/containers"), getContainers)
 	mux.HandleFunc(pat.Get("/deployments"), getDeployments)
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
-	mux.HandleFunc(pat.Post("/deployment"), CreateDeployment)
+	mux.HandleFunc(pat.Post("/deployment"), createDeploymentEndpoint)
 	mux.HandleFunc(pat.Post("/login"), login)
 	mux.HandleFunc(pat.Get("/test"), func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
