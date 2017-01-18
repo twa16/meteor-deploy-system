@@ -20,8 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var sessionExpireTime = 3600 //Session expire time in seconds
-
 var dClient *docker.Client
 var database *gorm.DB
 
@@ -332,18 +330,10 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	database = db
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/ping"), ping)
-	//mux.HandleFunc(pat.Get("/containers"), getContainers)
 	mux.HandleFunc(pat.Get("/deployments"), getDeployments)
 	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
 	mux.HandleFunc(pat.Post("/deployment"), createDeploymentEndpoint)
 	mux.HandleFunc(pat.Post("/login"), login)
-	mux.HandleFunc(pat.Get("/test"), func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		data := r.Header["X-Env-Var"]
-		for _, entry := range data {
-			fmt.Fprintf(w, entry+"\n")
-		}
-	})
 
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
