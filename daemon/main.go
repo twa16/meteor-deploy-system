@@ -269,6 +269,8 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 	log.Debugf("Domain Name Reserved: %s", nginxConfig.DomainName)
 	//set URL on deployment
 	deployment.URL = nginxConfig.DomainName
+	//Save deployment Info
+	db.Save(&deployment)
 	//TODO: Actually allow https
 	nginxConfig.IsHTTPS = true
 	//Set the deploymentID
@@ -287,6 +289,8 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 		mongoContainer = mongoContainerInstance
 		//Set the ID of the mongo container
 		deployment.MongoContainerID = mongoContainer.ID
+		//Save deployment Info
+		db.Save(&deployment)
 		//Now we start the MongoDB container
 		err = dClient.StartContainer(mongoContainer.ID, nil)
 		log.Debugf("MognoDB Container created: %s\n", mongoContainer.ID)
@@ -312,7 +316,10 @@ func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, a
 		log.Critical("Failed to create container: " + err.Error())
 		return nil, err
 	}
+	//Set the Container ID
 	deployment.ContainerID = container.ID
+	//Save deployment Info
+	db.Save(&deployment)
 	err = dClient.StartContainer(container.ID, nil)
 	log.Debugf("Container created: %s\n", container.ID)
 	if err != nil {
