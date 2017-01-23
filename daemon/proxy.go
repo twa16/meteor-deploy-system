@@ -137,8 +137,12 @@ func (n *NginxInstance) DeleteProxyConfiguration(db *gorm.DB, domainName string)
 }
 
 func (n *NginxInstance) GenerateHTTPSSettings(config NginxProxyConfiguration) NginxProxyConfiguration {
-	certificatePath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".cer"
-	privateKeyPath := viper.GetString("CertDestination") + string(filepath.Separator) + config.DomainName + ".key"
+	certPath, err := filepath.Abs(viper.GetString("CertDestination"))
+	if err != nil {
+		log.Fatal("Failed to expand certificate path: "+viper.GetString("CertDestination"))
+	}
+	certificatePath := certPath + string(filepath.Separator) + config.DomainName + ".cer"
+	privateKeyPath := certPath + string(filepath.Separator) + config.DomainName + ".key"
 
 	config.CertificatePath = certificatePath
 	config.PrivateKeyPath = privateKeyPath
