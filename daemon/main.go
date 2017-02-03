@@ -60,6 +60,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	err = os.MkdirAll(viper.GetString("DataDirectory"), 0777)
+	if err != nil {
+		panic(err)
+	}
+	err = os.MkdirAll(viper.GetString("ApplicationDirectory"), 0777)
+	if err != nil {
+		panic(err)
+	}
+
 
 	//Ensure admin user exists
 	ensureAdminUser(db)
