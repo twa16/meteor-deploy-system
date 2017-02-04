@@ -14,10 +14,10 @@ import (
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
-	"github.com/twa16/meteor-deploy-system/common"
 	"goji.io"
 	"goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/twa16/meteor-deploy-system/common"
 )
 
 var dClient *docker.Client
@@ -295,7 +295,7 @@ func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 	db.Where("authentication_token=?", key).Find(&authenticationKey).First(&authenticationKey)
 
 	//If the token hasn't been used in a week. Force a relogin.
-	if (time.Now().Unix() - authenticationKey.LastSeen) > (60 * 60 * 24 * 7) {
+	if authenticationKey.Persistent == false && (time.Now().Unix() - authenticationKey.LastSeen) > (60 * 60 * 24 * 7) {
 		return 2
 	}
 
@@ -316,6 +316,7 @@ func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 			return 0
 		}
 	}
+
 	//Otherwise, they are unauthorized
 	return 1
 }

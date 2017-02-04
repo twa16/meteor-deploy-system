@@ -9,6 +9,7 @@ type AuthenticationToken struct {
 	AuthenticationToken string //Session key used to authorize requests
 	UserID              uint   //ID of user that this token belongs to
 	LastSeen            int64  //Linux time of last API Call
+	Persistent	    bool   //If this is set to true, the key never expires.
 }
 
 // Represents a "deployment"
