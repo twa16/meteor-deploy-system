@@ -43,7 +43,8 @@ func login(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Record Not Found")
 		return
 	}
-	token, err := handleLoginAttempt(r.Form["username"][0], r.Form["password"][0])
+	var isPersistent = r.Form["persistent"][0] == "true"
+	token, err := handleLoginAttempt(r.Form["username"][0], r.Form["password"][0], isPersistent)
 	if err != nil {
 		fmt.Fprint(w, err.Error())
 		return
@@ -52,7 +53,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(jsonBytes))
 }
 
-func handleLoginAttempt(username string, password string) (mds.AuthenticationToken, error) {
+func handleLoginAttempt(username string, password string, persistentToken bool) (mds.AuthenticationToken, error) {
 	user, err := getUser(database, username)
 	//Make sure the user exists
 	if err != nil {
