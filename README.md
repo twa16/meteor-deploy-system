@@ -7,6 +7,7 @@ This project aims to create a system to manage the deployment of meteor applicat
 ### Permissions
 + **Superuser Permission**  _*.*_ This grants access to all endpoints and objects
 + **Deployment List Permission**
+
 ### Architecture
 
 ####Daemon
