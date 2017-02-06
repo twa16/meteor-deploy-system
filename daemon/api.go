@@ -266,7 +266,7 @@ func deleteDeployment(w http.ResponseWriter, r *http.Request) {
 			//return
 		}
 		//Remove the container
-		err = removeContainer(dClient, id)
+		err = removeContainer(dClient, deployment.ContainerID)
 		if err != nil {
 			log.Warning(err)
 			//w.WriteHeader(http.StatusInternalServerError)
