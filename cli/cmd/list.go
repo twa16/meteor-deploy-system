@@ -19,10 +19,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/k0kubun/pp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
+	"fmt"
+	"github.com/fatih/color"
 )
 
 // listCmd represents the list command
@@ -79,9 +80,20 @@ func getDeployments() {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
 	//Convert the JSON into an AutenticationToken struct
-	var deployment []mds.Deployment
-	if err = json.Unmarshal(buf.Bytes(), &deployment); err != nil {
+	var deployments []mds.Deployment
+	if err = json.Unmarshal(buf.Bytes(), &deployments); err != nil {
 		panic(err)
 	}
-	pp.Println(deployment)
+
+	for _, deployment := range deployments {
+		fmt.Printf("====== Name: %s =====\n", deployment.ProjectName)
+		fmt.Printf("URL: %s\n", deployment.URL)
+		fmt.Printf("Status: ")
+		if deployment.Status != "running" {
+			color.Red("%s\n\n", deployment.Status)
+		} else {
+			color.Green("%s\n\n", deployment.Status)
+		}
+	}
+
 }

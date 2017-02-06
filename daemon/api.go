@@ -40,7 +40,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	//Ensure the proper parameters were sent
 	if len(r.Form["username"]) == 0 || len(r.Form["password"]) == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Record Not Found")
+		fmt.Fprint(w, "Record Not Found")
+		return
+	}
+	if len(r.Form["persistent"]) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Persistence setting not set")
 		return
 	}
 	var isPersistent = r.Form["persistent"][0] == "true"

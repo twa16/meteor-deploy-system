@@ -62,6 +62,7 @@ var connectCmd = &cobra.Command{
 		username, password := credentials()
 		data.Set("username", username)
 		data.Add("password", password)
+		data.Add("persistent", "false")
 
 		login(args[0], data, false)
 	},
