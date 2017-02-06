@@ -94,6 +94,37 @@ func main() {
 	log.Info("Seeding random number generator...")
 	math.Seed(time.Now().UTC().UnixNano())
 
+	//=====Start API======
+	log.Info("Ensuring HTTPS Certificates Exist")
+	apiKeyFile := viper.GetString("ApiHttpsKey")
+	apiCertFile := viper.GetString("ApiHttpsCertificate")
+	log.Debugf("Using Key File: %s\n", apiKeyFile)
+	log.Debugf("Using Certificate File: %s\n", apiCertFile)
+	//Check to see if cert exists
+	_, errKey := os.Stat(apiKeyFile)
+	_, errCert := os.Stat(apiCertFile)
+	if os.IsNotExist(errKey) || os.IsNotExist(errCert) {
+		log.Warning("Generating HTTPS Certificate for API")
+		os.Remove(apiKeyFile)
+		os.Remove(apiCertFile)
+		privateKey, certificate, err := CreateSelfSignedCertificate(viper.GetString("ApiHost"))
+		if err != nil {
+			log.Fatalf("Error generating API Certificates: %s\n", err.Error())
+			panic(err)
+		}
+		err = WriteCertificateToFile(certificate, apiCertFile)
+		if err != nil {
+			log.Fatalf("Error saving certificate: %s\n", err.Error())
+			panic(err)
+		}
+		err = WritePrivateKeyToFile(privateKey, apiKeyFile)
+		if err != nil {
+			log.Fatalf("Error saving private key: %s\n", err.Error())
+			panic(err)
+		}
+		log.Info("API Certificate Generation Complete.")
+	}
+
 	//Start Deployment Monitor
 	go func(dClient *docker.Client, db *gorm.DB) {
 		log.Info("Started Deployment Monitor")
@@ -103,7 +134,6 @@ func main() {
 		}
 	}(cli, db)
 
-	//=====Start API======
 	//createDeployment(cli, db, "First-Project", "/tmp/test")
 	log.Info("Start Complete! Starting API.")
 	startAPI(cli, db)
@@ -173,6 +203,8 @@ func loadConfig() {
 	//Set defaults
 	viper.SetDefault("DataDirectory", "./data")
 	viper.SetDefault("ApplicationDirectory", "./apps")
+	viper.SetDefault("ApiHttpsKey", "./ssl/api.key")
+	viper.SetDefault("ApiHttpsCertificate", "./ssl/api.cert")
 
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {

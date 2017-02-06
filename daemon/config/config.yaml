@@ -20,6 +20,10 @@ ApplicationDirectory: "./apps/"
 AutoManageMongoDB: true
 MongoDBURL: mongodb://172.30.111.63
 MongoDBOpsLog:
+#API HTTPS Certificate Information. Make sure the directory exists. If the files do not exist a self-signed certificate will be made.
+ApiHost: localhost:8000
+ApiHttpsCertificate: ./ssl/api.cert
+ApiHttpsKey: ./ssl/api.key
 #This is where Nginx stores its configs
 NginxSitesDestination: "/usr/local/etc/nginx/servers/"
 NginxReloadCommand:

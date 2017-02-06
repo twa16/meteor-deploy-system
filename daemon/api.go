@@ -342,5 +342,7 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux.HandleFunc(pat.Post("/deployment"), createDeploymentEndpoint)
 	mux.HandleFunc(pat.Post("/login"), login)
 
-	log.Fatal(http.ListenAndServe(":8000", mux))
+	apiCertFile := viper.GetString("ApiHttpsCertificate")
+	apiKeyFile := viper.GetString("ApiHttpsKey")
+	log.Fatal(http.ListenAndServeTLS(":8000", apiCertFile, apiKeyFile, mux))
 }
