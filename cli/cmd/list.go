@@ -24,6 +24,7 @@ import (
 	"github.com/twa16/meteor-deploy-system/common"
 	"fmt"
 	"github.com/fatih/color"
+	"time"
 )
 
 // listCmd represents the list command
@@ -87,6 +88,7 @@ func getDeployments() {
 
 	for _, deployment := range deployments {
 		fmt.Printf("====== Name: %s =====\n", deployment.ProjectName)
+		fmt.Printf("Created: %s\n", deployment.Model.CreatedAt.Format(time.RFC822))
 		fmt.Printf("URL: %s\n", deployment.URL)
 		fmt.Printf("Status: ")
 		if deployment.Status != "running" {
