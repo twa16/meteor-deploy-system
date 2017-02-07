@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/twa16/meteor-deploy-system.svg?branch=master)](https://travis-ci.org/twa16/meteor-deploy-system)
 # Meteor Deployment System
 This project aims to create a system to manage the deployment of meteor applications. This is also my first project written in Go so no promises on code quality. I will continue to iterate as I learn more though.
 
