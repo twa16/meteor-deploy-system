@@ -37,6 +37,7 @@ type SessionRecord struct {
 	Hostname string
 	Token    string
 	UseHTTPS bool
+	IgnoreCertificateProblems bool
 }
 
 var cfgFile string

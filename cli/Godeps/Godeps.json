@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/twa16/meteor-deploy-system/cli",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v75",
+	"GodepVersion": "v79",
 	"Deps": [
 		{
 			"ImportPath": "github.com/fatih/color",
@@ -145,7 +145,7 @@
 		},
 		{
 			"ImportPath": "github.com/twa16/meteor-deploy-system/common",
-			"Rev": "e4cc063f5ec97e70730ab4ed7b298eaabeac5a17"
+			"Rev": "655e3edd52c6bebab45662f681cdc1367ca4d361"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
