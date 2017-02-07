@@ -93,6 +93,7 @@ func init() {
 		viper.Set("AuthenticationToken", sessionRecord.Token)
 		viper.Set("ServerHostname", sessionRecord.Hostname)
 		viper.Set("UseHTTPS", sessionRecord.UseHTTPS)
+		viper.Set("IgnoreSSLErrors", sessionRecord.IgnoreCertificateProblems)
 	}
 }
 

@@ -35,6 +35,7 @@ import (
 	"strings"
 	"github.com/k0kubun/pp"
 	"io/ioutil"
+	"crypto/tls"
 )
 
 // createCmd represents the create command
@@ -164,7 +165,10 @@ func createDeployment(pathToTarball string, projectName string, settings string,
 	data := createForm(settings, pathToTarball, envVars)
 
 	//Create the client
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: viper.GetBool("IgnoreSSLErrors")},
+	}
+	client := &http.Client{Transport: tr}
 	r, _ := http.NewRequest("POST", urlString, data)
 	r.Header.Add("Content-Type", "multipart/form-data")
 	r.Header.Add("X-Auth-Token", authToken)

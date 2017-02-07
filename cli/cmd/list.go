@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"time"
+	"crypto/tls"
 )
 
 // listCmd represents the list command
@@ -68,7 +69,10 @@ func getDeployments() {
 		urlString = "http://" + urlString
 	}
 	//Create the client
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: viper.GetBool("IgnoreSSLErrors")},
+	}
+	client := &http.Client{Transport: tr}
 	r, _ := http.NewRequest("GET", urlString, nil) // <-- URL-encoded payload
 	r.Header.Add("X-Auth-Token", viper.GetString("AuthenticationToken"))
 

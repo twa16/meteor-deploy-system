@@ -38,6 +38,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/ssh/terminal"
+	"crypto/tls"
 )
 
 // connectCmd represents the connect command
@@ -48,23 +49,42 @@ var connectCmd = &cobra.Command{
 	connect [hostname]
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
+		reader := bufio.NewReader(os.Stdin)
+		var host string
 		if len(args) == 0 {
-			fmt.Println("Please provide a host to connect to")
-			return
+			fmt.Print("Enter Host: ")
+			host, _ = reader.ReadString('\n')
+		} else {
+			host = args[0]
 		}
 		if viper.GetString("AuthToken") != "" {
 			fmt.Println("Session exists.")
 			return
 		}
-		fmt.Println("Attempting to connect to: " + args[0])
+		fmt.Println("Attempting to connect to: " + host)
 		data := url.Values{}
 
+
+
+		//Get credentials
 		username, password := credentials()
 		data.Set("username", username)
 		data.Add("password", password)
 		data.Add("persistent", "false")
 
-		login(args[0], data, false)
+		//Check to see if we should ignore SSL errors
+		ignoreSSL := false
+		for true {
+			fmt.Print("Ignore SSL Errors (true/false)? ")
+			ignoreSSLString, _ := reader.ReadString('\n')
+			if ignoreSSLString != "true" && ignoreSSLString != "false" {
+				fmt.Println("Please enter true or false")
+			} else if ignoreSSLString == "true" {
+				ignoreSSL = true
+			}
+		}
+
+		login(host, data, true, ignoreSSL)
 	},
 }
 
@@ -84,7 +104,7 @@ func credentials() (string, string) {
 	return strings.TrimSpace(username), strings.TrimSpace(password)
 }
 
-func login(hostname string, data url.Values, secure bool) {
+func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	//Let's build the url
 	urlString := hostname + "/login"
 	//Check if the connection should be secure and prepend the proper protocol
@@ -94,7 +114,10 @@ func login(hostname string, data url.Values, secure bool) {
 		urlString = "http://" + urlString
 	}
 	//Create the client
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: ignoreSSL},
+	}
+	client := &http.Client{Transport: tr}
 	r, _ := http.NewRequest("POST", urlString, bytes.NewBufferString(data.Encode())) // <-- URL-encoded payload
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
@@ -117,6 +140,7 @@ func login(hostname string, data url.Values, secure bool) {
 	sessionRecord.Token = authenticationToken.AuthenticationToken
 	sessionRecord.Hostname = hostname
 	sessionRecord.UseHTTPS = secure
+	sessionRecord.IgnoreCertificateProblems = ignoreSSL
 	sessionRecordJSON, _ := json.Marshal(sessionRecord)
 	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", sessionRecordJSON, 0644)
 	if err != nil {
