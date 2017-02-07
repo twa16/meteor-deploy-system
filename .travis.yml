@@ -14,4 +14,4 @@ branches:
     - master
 
 script:
-  - travis.sh
+  - sh travis.sh
