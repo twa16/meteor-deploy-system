@@ -54,6 +54,7 @@ var connectCmd = &cobra.Command{
 		if len(args) == 0 {
 			fmt.Print("Enter Host: ")
 			host, _ = reader.ReadString('\n')
+			host = strings.TrimSpace(host)
 		} else {
 			host = args[0]
 		}
@@ -75,12 +76,14 @@ var connectCmd = &cobra.Command{
 		//Check to see if we should ignore SSL errors
 		ignoreSSL := false
 		for true {
-			fmt.Print("Ignore SSL Errors (true/false)? ")
+			fmt.Print("\nIgnore SSL Errors (true/false)? ")
 			ignoreSSLString, _ := reader.ReadString('\n')
+			ignoreSSLString = strings.TrimSpace(ignoreSSLString)
 			if ignoreSSLString != "true" && ignoreSSLString != "false" {
 				fmt.Println("Please enter true or false")
 			} else if ignoreSSLString == "true" {
 				ignoreSSL = true
+				break
 			}
 		}
 

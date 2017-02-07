@@ -90,6 +90,7 @@ func getDeployments() {
 		panic(err)
 	}
 
+	fmt.Printf("Got %d Deployments\n", len(deployments))
 	for _, deployment := range deployments {
 		fmt.Printf("====== Name: %s =====\n", deployment.ProjectName)
 		fmt.Printf("Created: %s\n", deployment.Model.CreatedAt.Format(time.RFC822))
