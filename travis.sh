@@ -1,5 +1,8 @@
 cd daemon
-go build
+echo "Building Daemon"
+go build -v
 cd ..
 cd cli
-go build
+echo "Building CLI"
+go build -v
+echo "Done"
