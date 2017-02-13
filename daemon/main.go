@@ -293,10 +293,119 @@ func removeContainer(client *docker.Client, id string) error {
 	return client.RemoveContainer(options)
 }
 
+//Updates and restarts a deployment
+// projectName cannot contain spaces
+func updateDeployment(dClient *docker.Client, db *gorm.DB, deploymentID int, applicationDirectory string, meteorSettings string, environment []string) (*mds.Deployment, error) {
+	/*
+	 * Step 1: Get the original deployment
+	 */
+	log.Info("Deployment Update requested for Deployment ID: %d\n", deploymentID)
+	var deployment mds.Deployment
+	var nginxConfig NginxProxyConfiguration
+
+	//Get deployment object
+	err := db.Where("id = ?", deploymentID).First(&deployment).Error
+	if err != nil {
+		log.Critical(err)
+		return nil, errors.New("Deployment with that ID does not exist")
+	}
+	//Get nginx config
+	err = db.Where("deployment_id = ?", deployment.ID).First(&nginxConfig).Error
+	if err != nil {
+		log.Critical(err)
+		return nil, errors.New("Could not find NginxConfig for that deployment")
+	}
+	log.Debugf("Deployment Update Started for %s\n", deployment.ProjectName)
+
+	//Get Mongo Container
+	mongoContainer, err := dClient.InspectContainer(deployment.MongoContainerID)
+	if err != nil {
+		log.Warning("Error getting Mongo container for update of "+deployment.ProjectName)
+		return nil, err
+	}
+
+	/*
+	 * Step 2: Cleanup old container
+	 */
+	//Stop the container
+	err = dClient.StopContainer(deployment.ContainerID, 10)
+	if err != nil {
+		log.Warning(err)
+	}
+
+	//Remove the container
+	//This method sets the volume remove flag as well
+	err = removeContainer(dClient, deployment.ContainerID)
+	if err != nil {
+		log.Warning(err)
+	}
+
+	/*
+	 * Step 3: Update deployment object
+	 */
+	//Update Deployment with new values
+	deployment.VolumePath = applicationDirectory
+	db.Save(&deployment)
+
+	//He set the URLs
+	mongoURL := "mongodb://mongo"
+	mongoOpsLogURL := ""
+
+	/*
+	 * Step 4: Create new docker container
+	 */
+	//Create a docker container for the application
+	log.Debugf("Starting Docker Container\n")
+	container, err := createDockerContainer(dClient, deployment.VolumePath, deployment.Port, "http://"+nginxConfig.DomainName, mongoURL, mongoOpsLogURL, meteorSettings, environment, mongoContainer)
+	if err != nil {
+		log.Critical("Failed to create container: " + err.Error())
+		return nil, err
+	}
+	//Start the new docker container
+	err = dClient.StartContainer(container.ID, nil)
+	log.Debugf("Container created: %s\n", container.ID)
+	if err != nil {
+		log.Critical("Failed to start container: " + err.Error())
+		return nil, err
+	}
+
+	/*
+	 * Step 5: Save new container information
+	 */
+	//Set the Container ID
+	deployment.ContainerID = container.ID
+	//Save deployment Info
+	db.Save(&deployment)
+
+	/*
+	 * Step 6: Recreate proxy
+	 */
+	//Generate HTTPS settings if needed
+	if nginxConfig.IsHTTPS {
+		log.Infof("Generating HTTPS configuration for update of %s\n", deployment.ProjectName)
+		nginxConfig = nginx.GenerateHTTPSSettings(nginxConfig)
+	}
+	log.Debugf("Creating nginx proxy for update of %s", deployment.ProjectName)
+	_, err = nginx.CreateProxy(db, &nginxConfig)
+	if err != nil {
+		log.Critical("Error Creating Proxy: " + err.Error())
+		return nil, err
+	}
+
+	/*
+	 * Step 7: Save New Deployment Information
+	 */
+	//If there was no error then the container is running
+	deployment.Status = "running"
+	//Save deployment Info
+	db.Save(&deployment)
+	return &deployment, nil
+}
+
 //Creates and starts a deployment
 // projectName cannot contain spaces
 func createDeployment(dClient *docker.Client, db *gorm.DB, projectName string, applicationDirectory string, meteorSettings string, environment []string) (*mds.Deployment, error) {
-	log.Debugf("Deployment Creation Started for %s\n", projectName)
+	log.Info("Deployment Creation Started for %s\n", projectName)
 	//Get a new port
 	var port = strconv.Itoa(GetNextOpenPort(db))
 	log.Debugf("Using port: %s\n", port)

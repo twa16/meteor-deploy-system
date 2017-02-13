@@ -18,6 +18,7 @@ import (
 	"goji.io/pat"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/twa16/meteor-deploy-system/common"
+	"strconv"
 )
 
 var dClient *docker.Client
@@ -33,8 +34,8 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "PONG")
 }
 
-//Called when /login is called
-func login(w http.ResponseWriter, r *http.Request) {
+//Called when /loginAPIHandler is called
+func loginAPIHandler(w http.ResponseWriter, r *http.Request) {
 	//Process the query parameters
 	r.ParseForm()
 	//Ensure the proper parameters were sent
@@ -62,7 +63,7 @@ func handleLoginAttempt(username string, password string, persistentToken bool) 
 	user, err := getUser(database, username)
 	//Make sure the user exists
 	if err != nil {
-		log.Warningf("Error retrieving user during login: %s \n", err)
+		log.Warningf("Error retrieving user during loginAPIHandler: %s \n", err)
 		//These errors to the user are intentionally vague
 		return mds.AuthenticationToken{}, errors.New("Username or password incorrect")
 	}
@@ -212,7 +213,7 @@ func pathExists(path string) (bool, error) {
 }
 
 //Called when /deployments is called
-func getDeployments(w http.ResponseWriter, r *http.Request) {
+func getDeploymentsAPIHandler(w http.ResponseWriter, r *http.Request) {
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
 	if authCode == 0 {
 		var deployments []mds.Deployment
@@ -237,8 +238,93 @@ func getDeployments(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
+	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
+	if authCode == 0 {
+		//Process the query parameters
+		r.ParseForm()
+
+		//Check if they sent a projectName
+		if len(r.Form["projectid"]) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Please provide a project name")
+			return
+		}
+		//Get the project name they want
+		projectidstring := r.Form["projectid"][0]
+		projectId, err := strconv.Atoi(projectidstring)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Invalid Deployment ID\n")
+			return
+		}
+
+		//Handle file upload t get the archive of the application
+		r.ParseMultipartForm(32 << 20)
+		file, _, err := r.FormFile("uploadfile")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		//Get destination directory
+		destination, err := GetNewApplicationDirectory()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Error creating new application directory: %s", err.Error())
+			return
+		}
+		//Copy tarball to volume
+		//Create destination
+		desFile, err := os.Create(destination + "/application.tar.gz")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to create destination file(%s): %s", destination, err.Error())
+			return
+		}
+		defer desFile.Close()
+		//Copy content
+		_, err = io.Copy(desFile, file)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
+			return
+		}
+		//Sync
+		err = desFile.Sync()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Internal Server Error")
+			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
+			return
+		}
+
+		//Get custom environmental Variables
+		data := r.Form["Env-Var"]
+		customEnvironmentalVariables := make([]string, 1)
+		for _, entry := range data {
+			log.Debugf("Got custom environmental variable: %s", entry)
+			customEnvironmentalVariables = append(customEnvironmentalVariables, entry)
+		}
+		//Start creating deployment
+		updateDeployment(dClient, database, projectId, destination, r.Form["settings"][0], customEnvironmentalVariables)
+		fmt.Fprintf(w, "")
+	} else if authCode == 2 {
+		//Unauthorized 401
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "Token Expired")
+	} else {
+		//Unauthorized 401
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "Unauthorized")
+	}
+}
+
 //Called when DELETE /deployment is called an id should be passed as a query parameter
-func deleteDeployment(w http.ResponseWriter, r *http.Request) {
+func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: Tear this apart and redo it
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], DeleteDeploymentPermission)
 	if authCode == 0 {
@@ -337,10 +423,10 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	database = db
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/ping"), ping)
-	mux.HandleFunc(pat.Get("/deployments"), getDeployments)
-	mux.HandleFunc(pat.Delete("/deployment"), deleteDeployment)
+	mux.HandleFunc(pat.Get("/deployments"), getDeploymentsAPIHandler)
+	mux.HandleFunc(pat.Delete("/deployment"), deleteDeploymentAPIHandler)
 	mux.HandleFunc(pat.Post("/deployment"), createDeploymentEndpoint)
-	mux.HandleFunc(pat.Post("/login"), login)
+	mux.HandleFunc(pat.Post("/login"), loginAPIHandler)
 
 	apiCertFile := viper.GetString("ApiHttpsCertificate")
 	apiKeyFile := viper.GetString("ApiHttpsKey")

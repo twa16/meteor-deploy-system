@@ -99,6 +99,8 @@ func (n *NginxInstance) CreateProxy(db *gorm.DB, config *NginxProxyConfiguration
 
 	//Write the template to a file to the sites-available directory
 	var fileName = n.SitesDirectory + "MDS-" + domainName + ".conf"
+	//Cleanup old file if it exists
+	os.Remove(fileName)
 	//Save the path to the config
 	config.ConfigurationFilePath = fileName
 	err = ioutil.WriteFile(fileName, []byte(configString), 0644)
