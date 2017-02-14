@@ -234,7 +234,7 @@ func getDeploymentsAPIHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Unauthorized")
+		fmt.Fprint(w, "Unauthorized")
 	}
 }
 
@@ -247,7 +247,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		//Check if they sent a projectName
 		if len(r.Form["projectid"]) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Please provide a project name")
+			fmt.Fprint(w, "Please provide a project name")
 			return
 		}
 		//Get the project name they want
@@ -255,7 +255,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		projectId, err := strconv.Atoi(projectidstring)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Invalid Deployment ID\n")
+			fmt.Fprint(w, "Invalid Deployment ID")
 			return
 		}
 
@@ -271,7 +271,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		destination, err := GetNewApplicationDirectory()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
+			fmt.Fprint(w, "Internal Server Error")
 			log.Criticalf("Error creating new application directory: %s", err.Error())
 			return
 		}
@@ -280,7 +280,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		desFile, err := os.Create(destination + "/application.tar.gz")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
+			fmt.Fprint(w, "Internal Server Error")
 			log.Criticalf("Failed to create destination file(%s): %s", destination, err.Error())
 			return
 		}
@@ -289,7 +289,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = io.Copy(desFile, file)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
+			fmt.Fprint(w, "Internal Server Error")
 			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
 			return
 		}
@@ -297,7 +297,7 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		err = desFile.Sync()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Internal Server Error")
+			fmt.Fprint(w, "Internal Server Error")
 			log.Criticalf("Failed to copy tarball to volume: %s", err.Error())
 			return
 		}
@@ -311,15 +311,15 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		//Start creating deployment
 		updateDeployment(dClient, database, projectId, destination, r.Form["settings"][0], customEnvironmentalVariables)
-		fmt.Fprintf(w, "")
+		fmt.Fprint(w, "")
 	} else if authCode == 2 {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Token Expired")
+		fmt.Fprint(w, "Token Expired")
 	} else {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Unauthorized")
+		fmt.Fprint(w, "Unauthorized")
 	}
 }
 
@@ -333,7 +333,7 @@ func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		//Make sure an id was submitted
 		if len(r.Form["id"]) == 0 {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Invalid Request")
+			fmt.Fprint(w, "Invalid Request")
 			return
 		}
 		//Get the id of the item to remove and retrieve the item
@@ -343,7 +343,7 @@ func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		//Check to see if the item exists
 		if recordExists {
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "Record Not Found")
+			fmt.Fprint(w, "Record Not Found")
 			return
 		}
 
@@ -366,15 +366,15 @@ func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		//Delete Record
 		database.Delete(&deployment)
-		fmt.Fprintf(w, "Deleted")
+		fmt.Fprint(w, "Deleted")
 	} else if authCode == 2 {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Token Expired")
+		fmt.Fprint(w, "Token Expired")
 	} else {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Unauthorized")
+		fmt.Fprint(w, "Unauthorized")
 	}
 }
 
