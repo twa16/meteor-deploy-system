@@ -169,8 +169,11 @@ func createDeploymentEndpoint(w http.ResponseWriter, r *http.Request) {
 			customEnvironmentalVariables = append(customEnvironmentalVariables, entry)
 		}
 		//Start creating deployment
-		createDeployment(dClient, database, projectName, destination, r.Form["settings"][0], customEnvironmentalVariables)
-		fmt.Fprintf(w, "")
+		deployment, err := createDeployment(dClient, database, projectName, destination, r.Form["settings"][0], customEnvironmentalVariables)
+		if err != nil {
+			fmt.Fprintf(w,"Error: %s\n", err.Error())
+		}
+		fmt.Fprint(w, "Created: %s\n", deployment.ProjectName)
 	} else if authCode == 2 {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)

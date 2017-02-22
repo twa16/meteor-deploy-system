@@ -144,7 +144,7 @@ func createDeployment(pathToTarball string, projectName string, settings string,
 	isSecure := viper.GetBool("UseHTTPS")
 	authToken := viper.GetString("AuthenticationToken")
 
-	urlString := hostname + "/login"
+	urlString := hostname + "/deployment"
 	//Check if the connection should be secure and prepend the proper protocol
 	if isSecure {
 		urlString = "https://" + urlString
@@ -160,9 +160,10 @@ func createDeployment(pathToTarball string, projectName string, settings string,
 	}
 
 	//Store projectname in URL
-	reqURL.Query().Add("projectname", projectName)
+	q := reqURL.Query()
+	q.Add("projectname", projectName)
 	//Store the file and settings as byte buffer for body
-	data := createForm(settings, pathToTarball, envVars)
+	data, fw := createForm(settings, pathToTarball, envVars)
 
 	//Create the client
 	tr := &http.Transport{
@@ -170,57 +171,60 @@ func createDeployment(pathToTarball string, projectName string, settings string,
 	}
 	client := &http.Client{Transport: tr}
 	r, _ := http.NewRequest("POST", urlString, data)
-	r.Header.Add("Content-Type", "multipart/form-data")
+	r.URL.RawQuery = q.Encode()
+	r.Header.Add("Content-Type", fw.FormDataContentType())
 	r.Header.Add("X-Auth-Token", authToken)
+	fmt.Println("Creating Deployment...")
 	resp, err := client.Do(r)
 	if err != nil {
 		fmt.Println("Failed to create deployment")
-		panic(err)
+		fmt.Errorf("Error: %s\n", err.Error())
+		os.Exit(1)
 	}
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
-	fmt.Println(buf.String())
+	fmt.Println("output: "+buf.String())
 }
 
-func createForm(settings string, file string, envVars []string) (*bytes.Buffer) {
+func createForm(settings string, file string, envVars []string) (*bytes.Buffer, *multipart.Writer) {
 	// Prepare a form that you will submit to that URL.
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 	// Add your image file
 	f, err := os.Open(file)
 	if err != nil {
-		return nil
+		return nil, w
 	}
 	defer f.Close()
-	fw, err := w.CreateFormFile("image", file)
+	fw, err := w.CreateFormFile("uploadfile", file)
 	if err != nil {
-		return nil
+		return nil, w
 	}
 	if _, err = io.Copy(fw, f); err != nil {
-		return nil
+		return nil, w
 	}
 	// Add the settings
 	if fw, err = w.CreateFormField("settings"); err != nil {
-		return nil
+		return nil, w
 	}
 	if _, err = fw.Write([]byte(settings)); err != nil {
-		return nil
+		return nil, w
 	}
 
 	//Add any env vars
 	for _, envVar := range(envVars) {
 		if fw, err = w.CreateFormField("Env-Var"); err != nil {
-			return nil
+			return nil, w
 		}
 		if _, err = fw.Write([]byte(envVar)); err != nil {
-			return nil
+			return nil, w
 		}
 	}
 
 	// Don't forget to close the multipart writer.
 	// If you don't close it, your request will be missing the terminating boundary.
 	w.Close()
-	return &b
+	return &b, w
 }
 
 func init() {
