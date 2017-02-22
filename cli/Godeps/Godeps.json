@@ -145,7 +145,7 @@
 		},
 		{
 			"ImportPath": "github.com/twa16/meteor-deploy-system/common",
-			"Rev": "fd854e5dbb454484893757959adb0bf365c0b68d"
+			"Rev": "57275ab8fbde557c762259ee5243649f2c67e154"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",

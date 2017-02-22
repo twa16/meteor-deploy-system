@@ -128,15 +128,18 @@ func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	//Send the data and get the response
 	resp, err := client.Do(r)
 	if err != nil {
-		panic(err)
+		fmt.Errorf("Error Connecting to Daemon: %s\n", err.Error())
+		os.Exit(1)
 	}
 	//Get the body of the response as a string
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
+	fmt.Println(buf.String())
 	//Convert the JSON into an AutenticationToken struct
 	var authenticationToken mds.AuthenticationToken
 	if err = json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
-		panic(err)
+		fmt.Errorf("Error Processing Session Response: %s\n", err.Error())
+		os.Exit(1)
 	}
 	viper.Set("AuthenticationToken", authenticationToken.AuthenticationToken)
 	sessionRecord := SessionRecord{}
