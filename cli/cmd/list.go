@@ -23,9 +23,10 @@ import (
 	"github.com/spf13/viper"
 	"github.com/twa16/meteor-deploy-system/common"
 	"fmt"
-	"github.com/fatih/color"
-	"time"
 	"crypto/tls"
+	"github.com/olekukonko/tablewriter"
+	"os"
+	"strconv"
 )
 
 // listCmd represents the list command
@@ -91,16 +92,16 @@ func getDeployments() {
 	}
 
 	fmt.Printf("Got %d Deployments\n", len(deployments))
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"ID", "Name", "URL", "State"})
 	for _, deployment := range deployments {
-		fmt.Printf("====== Name: %s =====\n", deployment.ProjectName)
-		fmt.Printf("Created: %s\n", deployment.Model.CreatedAt.Format(time.RFC822))
-		fmt.Printf("URL: %s\n", deployment.URL)
-		fmt.Printf("Status: ")
-		if deployment.Status != "running" {
-			color.Red("%s\n\n", deployment.Status)
-		} else {
-			color.Green("%s\n\n", deployment.Status)
+		line := []string{
+			strconv.Itoa(int(deployment.ID)),
+			deployment.ProjectName,
+			deployment.URL,
+			deployment.Status,
 		}
+		table.Append(line)
 	}
-
+	table.Render()
 }
