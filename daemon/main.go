@@ -155,52 +155,6 @@ func main() {
 	startAPI(cli, db)
 }
 
-//Ensures that an admin account exists and creates one if needed
-func ensureAdminUser(db *gorm.DB) {
-	log.Info("Checking if admin user exists.")
-	_, err := getUser(db, "admin")
-	if err != nil {
-		password, _ := GenerateRandomString(16)
-		createUser(db, "Admin", "User", "admin", "admin@admin.com", password, []string{"*.*"})
-		log.Info("Created admin user with password: " + password)
-	} else {
-		log.Info("Admin user exists.")
-	}
-}
-
-//Gets a user object from the db by username
-func getUser(db *gorm.DB, username string) (mds.User, error) {
-	var user mds.User
-	err := db.Where("username = ?", username).First(&user).Error
-	return user, err
-}
-
-//Creates a user in the DB
-func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string, permissions []string) {
-	user := mds.User{}
-	user.FirstName = firstName
-	user.LastName = lastName
-	user.Username = username
-	user.Email = email
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	user.PasswordHash = passwordHash
-	if err != nil {
-		log.Fatalf("Error hashing password: %s \n", err)
-	} else {
-		//Now let's create the permissions
-		for _, permissionString := range permissions {
-			//Create the permission object
-			userPermission := mds.UserPermission{}
-			userPermission.UserID = user.ID
-			userPermission.Permission = permissionString
-			//Add it to permissions
-			user.Permissions = append(user.Permissions, userPermission)
-		}
-		db.Create(&user)
-		log.Infof("Created User: %s", user.Username)
-	}
-}
-
 //Starts the connect to the docker daemon
 func startDockerClient() (*docker.Client, error) {
 	cli, err := docker.NewClientFromEnv()
@@ -309,8 +263,7 @@ func removeContainer(client *docker.Client, id string) error {
 	return client.RemoveContainer(options)
 }
 
-//Updates and restarts a deployment
-// projectName cannot contain spaces
+//updateDeployment Updates and restarts a deployment. projectName cannot contain spaces.
 func updateDeployment(dClient *docker.Client, db *gorm.DB, deploymentID int, applicationDirectory string, meteorSettings string, environment []string) (*mds.Deployment, error) {
 	/*
 	 * Step 1: Get the original deployment
@@ -523,9 +476,12 @@ func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 	var deployments []mds.Deployment
 	database.Find(&deployments)
 	for _, deployment := range deployments {
-		inspectResult, err := inspectDeployment(dClient, database, deployment.ID)
+		inspectResult, err := InspectDeployment(dClient, database, deployment.ID)
 		if err != nil {
 			log.Warning(err)
+			deployment.Status = "Err: "+err.Error()
+			db.Save(&deployment)
+			return
 		}
 		if inspectResult.Status != deployment.Status {
 			log.Infof("Update Deployment %d to status %s from %s\n", deployment.ID, inspectResult.Status, deployment.Status)
@@ -535,7 +491,7 @@ func InspectDeployments(dClient *docker.Client, db *gorm.DB) {
 }
 
 //Internal call that checks the status of a deployment and updates the DB
-func inspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {
+func InspectDeployment(dClient *docker.Client, db *gorm.DB, deploymentID uint) (*mds.Deployment, error) {
 	//First, let's grab the deployment description from the DB
 	var deployment mds.Deployment
 	db.First(&deployment, deploymentID)

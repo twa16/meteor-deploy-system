@@ -95,7 +95,9 @@ func handleLoginAttempt(username string, password string, persistentToken bool) 
 	token.AuthenticationToken = tokenGen
 	token.UserID = user.ID
 	token.LastSeen = time.Now().Unix()
+	token.Persistent = persistentToken
 
+	log.Info("User Authentication Request Granted for %s\n", username)
 	//Save it and return it
 	database.Create(&token)
 	return token, nil
@@ -235,10 +237,11 @@ func pathExists(path string) (bool, error) {
 func getDeploymentsAPIHandler(w http.ResponseWriter, r *http.Request) {
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
 	if authCode == 0 {
+		log.Debug("Sending Deployments for %s\n")
 		var deployments []mds.Deployment
 		database.Find(&deployments)
 		for i, deployment := range deployments {
-			inspectResult, err := inspectDeployment(dClient, database, deployment.ID)
+			inspectResult, err := InspectDeployment(dClient, database, deployment.ID)
 			if err != nil {
 				log.Warning(err)
 			}
