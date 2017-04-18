@@ -42,16 +42,6 @@ type Deployment struct {
 	MongoContainerID string //The ID of the container that is running this app's mongo instance
 }
 
-type User struct {
-	gorm.Model
-	FirstName    string
-	LastName     string
-	Username     string `gorm:"unique"`
-	Email        string
-	PasswordHash []byte           //BCrypt hash of password
-	Permissions  []UserPermission //Permissions that this user has
-}
-
 type UserPermission struct {
 	gorm.Model
 	UserID     uint

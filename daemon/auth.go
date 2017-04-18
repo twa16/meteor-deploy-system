@@ -11,6 +11,7 @@ var authProvider simpleauth.AuthProvider
 func initAuthSystem(db *gorm.DB) {
 	authProvider.SessionExpireTimeSeconds = 60*60*24*14
 	authProvider.Database = db
+	authProvider.Startup()
 }
 
 //Ensures that an admin account exists and creates one if needed

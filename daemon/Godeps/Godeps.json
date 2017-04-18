@@ -312,7 +312,7 @@
 		},
 		{
 			"ImportPath": "github.com/twa16/meteor-deploy-system/common",
-			"Rev": "7ba506ef8668374724c83292a176021ccd3ba2a8"
+			"Rev": "71df4fbbb5ce3bfa5c2a49ae42c9982ff69a78f2"
 		},
 		{
 			"ImportPath": "goji.io",
