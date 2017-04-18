@@ -36,9 +36,9 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/spf13/cobra"
-	"github.com/twa16/meteor-deploy-system/common"
 	"golang.org/x/crypto/ssh/terminal"
 	"crypto/tls"
+	"github.com/twa16/go-auth"
 )
 
 // connectCmd represents the connect command
@@ -135,7 +135,7 @@ func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
 	//Convert the JSON into an AutenticationToken struct
-	var authenticationToken mds.AuthenticationToken
+	var authenticationToken simpleauth.Session
 	if err = json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
 		fmt.Errorf("Error Processing Session Response: %s\n", err.Error())
 		os.Exit(1)

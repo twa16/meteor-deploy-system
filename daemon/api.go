@@ -92,7 +92,7 @@ func handleLoginAttempt(username string, password string, persistentToken bool) 
 	}
 	token, err := authProvider.GenerateSessionKey(user.ID, persistentToken)
 
-	log.Info("User Authentication Request Granted for %s\n", username)
+	log.Infof("User Authentication Request Granted for %s\n", username)
 	//Save it and return it
 	database.Create(&token)
 	return token, nil
@@ -230,9 +230,9 @@ func pathExists(path string) (bool, error) {
 
 //Called when /deployments is called
 func getDeploymentsAPIHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debug("BLAH")
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
 	if authCode == 0 {
-		log.Debug("Sending Deployments for %s\n")
 		var deployments []mds.Deployment
 		database.Find(&deployments)
 		for i, deployment := range deployments {
@@ -410,7 +410,6 @@ func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 	//Get user of the token
 	var user simpleauth.User
 	db.First(&user, authenticationKey.AuthUserID)
-	db.Model(&user).Related(&user.Permissions)
 
 	hasPermission, err := authProvider.CheckPermission(user.ID, permissionNeeded)
 	if err != nil {
