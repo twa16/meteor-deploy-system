@@ -63,9 +63,6 @@ func main() {
 	//Database: Migrating Schemas
 	log.Info("Migrating Schemas")
 	db.AutoMigrate(&mds.Deployment{})
-	db.AutoMigrate(&mds.UserPermission{})
-	//db.Model(&mds.User{}).Related(&mds.UserPermission{})
-	db.AutoMigrate(&mds.AuthenticationToken{})
 	db.AutoMigrate(&NginxProxyConfiguration{})
 	log.Info("Migration Complete")
 

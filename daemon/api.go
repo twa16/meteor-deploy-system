@@ -35,6 +35,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"github.com/twa16/meteor-deploy-system/common"
 	"strconv"
+	"github.com/twa16/go-auth"
 )
 
 var dClient *docker.Client
@@ -75,27 +76,21 @@ func loginAPIHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(jsonBytes))
 }
 
-func handleLoginAttempt(username string, password string, persistentToken bool) (mds.AuthenticationToken, error) {
+func handleLoginAttempt(username string, password string, persistentToken bool) (simpleauth.Session, error) {
 	user, err := getUser(username)
 	//Make sure the user exists
 	if err != nil {
 		log.Warningf("Error retrieving user during loginAPIHandler: %s \n", err)
 		//These errors to the user are intentionally vague
-		return mds.AuthenticationToken{}, errors.New("Username or password incorrect")
+		return simpleauth.Session{}, errors.New("Username or password incorrect")
 	}
 	//Check the password against the user object
 	if bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(password)) != nil {
 		//The passwords did not match
 		//These errors to the user are intentionally vague
-		return mds.AuthenticationToken{}, errors.New("Username or password incorrect")
+		return simpleauth.Session{}, errors.New("Username or password incorrect")
 	}
-	//Let's create a token
-	token := mds.AuthenticationToken{}
-	tokenGen, _ := GenerateRandomString(32)
-	token.AuthenticationToken = tokenGen
-	token.UserID = user.ID
-	token.LastSeen = time.Now().Unix()
-	token.Persistent = persistentToken
+	token, err := authProvider.GenerateSessionKey(user.ID, persistentToken)
 
 	log.Info("User Authentication Request Granted for %s\n", username)
 	//Save it and return it
