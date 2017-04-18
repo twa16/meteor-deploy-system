@@ -3,16 +3,23 @@ package main
 import (
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
-	"github.com/twa16/meteor-deploy-system/common"
+	"github.com/twa16/go-auth"
 )
 
+var authProvider simpleauth.AuthProvider
+
+func initAuthSystem(db *gorm.DB) {
+	authProvider.SessionExpireTimeSeconds = 60*60*24*14
+	authProvider.Database = db
+}
+
 //Ensures that an admin account exists and creates one if needed
-func ensureAdminUser(db *gorm.DB) {
+func ensureAdminUser() {
 	log.Info("Checking if admin user exists.")
-	_, err := getUser(db, "admin")
+	_, err := getUser("admin")
 	if err != nil {
 		password, _ := GenerateRandomString(16)
-		createUser(db, "Admin", "User", "admin", "admin@admin.com", password, []string{"*.*"})
+		createUser("Admin", "User", "admin", "admin@admin.com", password, []string{"*.*"})
 		log.Info("Created admin user with password: " + password)
 	} else {
 		log.Info("Admin user exists.")
@@ -20,15 +27,13 @@ func ensureAdminUser(db *gorm.DB) {
 }
 
 //Gets a user object from the db by username
-func getUser(db *gorm.DB, username string) (mds.User, error) {
-	var user mds.User
-	err := db.Where("username = ?", username).First(&user).Error
-	return user, err
+func getUser(username string) (simpleauth.User, error) {
+	return authProvider.GetUser(username)
 }
 
 //Creates a user in the DB
-func createUser(db *gorm.DB, firstName string, lastName string, username string, email string, password string, permissions []string) {
-	user := mds.User{}
+func createUser(firstName string, lastName string, username string, email string, password string, permissions []string) {
+	user := simpleauth.User{}
 	user.FirstName = firstName
 	user.LastName = lastName
 	user.Username = username
@@ -41,13 +46,17 @@ func createUser(db *gorm.DB, firstName string, lastName string, username string,
 		//Now let's create the permissions
 		for _, permissionString := range permissions {
 			//Create the permission object
-			userPermission := mds.UserPermission{}
-			userPermission.UserID = user.ID
+			userPermission := simpleauth.Permission{}
+			userPermission.AuthUserID = user.ID
 			userPermission.Permission = permissionString
 			//Add it to permissions
 			user.Permissions = append(user.Permissions, userPermission)
 		}
-		db.Create(&user)
-		log.Infof("Created User: %s", user.Username)
+		user, err = authProvider.CreateUser(user)
+		if err != nil {
+			log.Infof("Created User: %s", user.Username)
+		} else {
+			log.Critical("Error Creating User: %s\n", err.Error())
+		}
 	}
 }

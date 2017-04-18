@@ -76,7 +76,7 @@ func loginAPIHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLoginAttempt(username string, password string, persistentToken bool) (mds.AuthenticationToken, error) {
-	user, err := getUser(database, username)
+	user, err := getUser(username)
 	//Make sure the user exists
 	if err != nil {
 		log.Warningf("Error retrieving user during loginAPIHandler: %s \n", err)
