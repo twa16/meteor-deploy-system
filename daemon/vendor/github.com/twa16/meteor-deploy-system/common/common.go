@@ -20,14 +20,6 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type AuthenticationToken struct {
-	gorm.Model
-	AuthenticationToken string //Session key used to authorize requests
-	UserID              uint   //ID of user that this token belongs to
-	LastSeen            int64  //Linux time of last API Call
-	Persistent	    bool   //If this is set to true, the key never expires.
-}
-
 // Represents a "deployment"
 type Deployment struct {
 	gorm.Model
@@ -40,10 +32,4 @@ type Deployment struct {
 	Status           string //Status of the container, updated on inspect
 	URL              string //URL used to reach the service. Blank until deployment is complete
 	MongoContainerID string //The ID of the container that is running this app's mongo instance
-}
-
-type UserPermission struct {
-	gorm.Model
-	UserID     uint
-	Permission string
 }
