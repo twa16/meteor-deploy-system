@@ -61,6 +61,9 @@ func init() {
 }
 
 func getDeployments() {
+	if viper.GetBool("HasSession") != true {
+		return
+	}
 	//Let's build the url
 	urlString := viper.GetString("ServerHostname") + "/deployments"
 	//Check if the connection should be secure and prepend the proper protocol

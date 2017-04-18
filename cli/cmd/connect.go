@@ -108,6 +108,7 @@ func credentials() (string, string) {
 }
 
 func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
+	fmt.Printf("Logging into %s\n", hostname)
 	//Let's build the url
 	urlString := hostname + "/login"
 	//Check if the connection should be secure and prepend the proper protocol
@@ -125,12 +126,14 @@ func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
+	fmt.Println(urlString)
 	//Send the data and get the response
 	resp, err := client.Do(r)
 	if err != nil {
 		fmt.Errorf("Error Connecting to Daemon: %s\n", err.Error())
 		os.Exit(1)
 	}
+	fmt.Println("Connected to Server!")
 	//Get the body of the response as a string
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
@@ -147,6 +150,7 @@ func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	sessionRecord.UseHTTPS = secure
 	sessionRecord.IgnoreCertificateProblems = ignoreSSL
 	sessionRecordJSON, _ := json.Marshal(sessionRecord)
+	fmt.Printf("Writing Session to %s\n", viper.GetString("HomeDirectory")+"/.mds-session")
 	err = ioutil.WriteFile(viper.GetString("HomeDirectory")+"/.mds-session", sessionRecordJSON, 0644)
 	if err != nil {
 		panic(err)

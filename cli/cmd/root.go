@@ -90,6 +90,7 @@ func init() {
 			fmt.Printf("Invalid Session Record. Please delete %s\n", homeDirectory+"/.mds-session")
 			return
 		}
+		viper.Set("HasSession", true)
 		viper.Set("AuthenticationToken", sessionRecord.Token)
 		viper.Set("ServerHostname", sessionRecord.Hostname)
 		viper.Set("UseHTTPS", sessionRecord.UseHTTPS)
