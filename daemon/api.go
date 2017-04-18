@@ -399,7 +399,7 @@ func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 // Returns 0 if ok, 1 if unauthorized, 2 if expired session
 func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 	//Get the auth token
-	var authenticationKey mds.AuthenticationToken
+	var authenticationKey simpleauth.Session
 	db.Where("authentication_token=?", key).Find(&authenticationKey).First(&authenticationKey)
 
 	//If the token hasn't been used in a week. Force a relogin.
@@ -408,31 +408,21 @@ func checkAuthentication(db *gorm.DB, key string, permissionNeeded string) int {
 	}
 
 	//Get user of the token
-	var user mds.User
-	db.First(&user, authenticationKey.UserID)
+	var user simpleauth.User
+	db.First(&user, authenticationKey.AuthUserID)
 	db.Model(&user).Related(&user.Permissions)
 
-	for _, permission := range user.Permissions {
-		//*.* should be good for everything
-		if permission.Permission == "*.*" {
-			updateLastSeen(db, authenticationKey)
-			return 0
-		}
-		//Check for a match, return 0 if it exists
-		if permission.Permission == permissionNeeded {
-			updateLastSeen(db, authenticationKey)
-			return 0
-		}
+	hasPermission, err := authProvider.CheckPermission(user.ID, permissionNeeded)
+	if err != nil {
+		log.Warning("Failed to check user permission for %d: %s\n", user.ID, err.Error())
+		return 1
+	}
+	if hasPermission {
+		return 0
 	}
 
 	//Otherwise, they are unauthorized
 	return 1
-}
-
-// Updates the lastseen field on the AuthenticationToken and saves it to the DB
-func updateLastSeen(db *gorm.DB, authenticationKey mds.AuthenticationToken) {
-	authenticationKey.LastSeen = time.Now().Unix()
-	db.Save(authenticationKey)
 }
 
 func startAPI(dockerParam *docker.Client, db *gorm.DB) {
