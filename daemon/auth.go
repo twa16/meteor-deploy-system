@@ -55,9 +55,9 @@ func createUser(firstName string, lastName string, username string, email string
 		}
 		user, err = authProvider.CreateUser(user)
 		if err != nil {
-			log.Infof("Created User: %s", user.Username)
-		} else {
 			log.Critical("Error Creating User: %s\n", err.Error())
+		} else {
+			log.Infof("Created User: %s", user.Username)
 		}
 	}
 }
