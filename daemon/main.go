@@ -314,6 +314,7 @@ func updateDeployment(dClient *docker.Client, db *gorm.DB, deploymentID int, app
 
 	//He set the URLs
 	mongoURL := "mongodb://mongo"
+	//TODO: SetOpsLog value
 	mongoOpsLogURL := ""
 
 	/*

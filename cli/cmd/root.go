@@ -40,7 +40,16 @@ type SessionRecord struct {
 	IgnoreCertificateProblems bool
 }
 
+//////////////////////
+// Persistent Flags///
+//////////////////////
+//Config file
 var cfgFile string
+//Verbose Flag
+var verbose bool
+//Quiet mode
+var quietMode bool
+
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -96,6 +105,12 @@ func init() {
 		viper.Set("UseHTTPS", sessionRecord.UseHTTPS)
 		viper.Set("IgnoreSSLErrors", sessionRecord.IgnoreCertificateProblems)
 	}
+
+	//Add verbose flag
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose Mode")
+	RootCmd.Flag("verbose").NoOptDefVal = "true"
+	RootCmd.PersistentFlags().BoolVarP(&quietMode, "quiet", "q", false, "Quiet mode. Useful for scripts.")
+	RootCmd.Flag("quiet").NoOptDefVal = "true"
 }
 
 // initConfig reads in config file and ENV variables if set.

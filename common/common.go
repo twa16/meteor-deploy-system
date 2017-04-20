@@ -32,4 +32,5 @@ type Deployment struct {
 	Status           string //Status of the container, updated on inspect
 	URL              string //URL used to reach the service. Blank until deployment is complete
 	MongoContainerID string //The ID of the container that is running this app's mongo instance
+	//IsDead           bool   //true if the deployment is in an irreversible error state
 }

@@ -230,7 +230,6 @@ func pathExists(path string) (bool, error) {
 
 //Called when /deployments is called
 func getDeploymentsAPIHandler(w http.ResponseWriter, r *http.Request) {
-	log.Debug("BLAH")
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], ListDeploymentPermission)
 	if authCode == 0 {
 		var deployments []mds.Deployment
@@ -430,8 +429,9 @@ func startAPI(dockerParam *docker.Client, db *gorm.DB) {
 	mux := goji.NewMux()
 	mux.HandleFunc(pat.Get("/ping"), ping)
 	mux.HandleFunc(pat.Get("/deployments"), getDeploymentsAPIHandler)
-	mux.HandleFunc(pat.Delete("/deployment"), deleteDeploymentAPIHandler)
-	mux.HandleFunc(pat.Post("/deployment"), createDeploymentEndpoint)
+	mux.HandleFunc(pat.Delete("/deployments"), deleteDeploymentAPIHandler)
+	mux.HandleFunc(pat.Post("/deployments"), createDeploymentEndpoint)
+	mux.HandleFunc(pat.Put("/deployments"), updateDeploymentAPIHandler)
 	mux.HandleFunc(pat.Post("/login"), loginAPIHandler)
 
 	apiCertFile := viper.GetString("ApiHttpsCertificate")
