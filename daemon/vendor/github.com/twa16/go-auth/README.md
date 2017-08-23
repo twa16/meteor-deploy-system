@@ -1,4 +1,4 @@
-#Go-Auth
+# Go-Auth
 
 Simple authentication helper for GO.
 

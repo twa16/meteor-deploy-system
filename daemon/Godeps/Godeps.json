@@ -305,7 +305,7 @@
 		},
 		{
 			"ImportPath": "github.com/twa16/go-auth",
-			"Rev": "30939b656b80a542602a04ce2802e75b2da498f4"
+			"Rev": "9eee9d30bc017f7858148f53f504c35a8e7fc1ec"
 		},
 		{
 			"ImportPath": "github.com/twa16/meteor-deploy-system/common",

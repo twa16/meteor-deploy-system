@@ -36,8 +36,8 @@ type User struct {
 	PasswordHash []byte         `json:"-"`      //BCrypt hash of the user's password
 	FirstName    string         //First name of the user
 	LastName     string         //Last name of the user
-	Email        string         `gorm:"unique"` //Email of the user
-	PhoneNumber  string         `gorm:"unique"` //Phone number of the users
+	Email        *string         `gorm:"unique"` //Email of the user
+	PhoneNumber  *string         `gorm:"unique"` //Phone number of the users
 	Role         string         //String that represents a user's role
 	Permissions  []Permission   `gorm:"ForeignKey:AuthUserID"` //The permissions the user has
 	UserMetaData []UserMetadata `gorm:"ForeignKey:AuthUserID"` //The metadata of the user
@@ -184,7 +184,7 @@ func (authProvider AuthProvider) CheckSessionKey(sessionKey string) (SessionChec
 //UpdateSessionAccessTime Sets the last access time on a session to the current time.
 func (authProvider AuthProvider) UpdateSessionAccessTime(session Session) error {
 	curTime := time.Now().Unix()
-	if (curTime - session.LastSeen) > authProvider.SessionExpireTimeSeconds {
+	if (curTime - session.LastSeen) < authProvider.SessionExpireTimeSeconds {
 		session.LastSeen = curTime
 		err := authProvider.Database.Save(&session).Error
 		return err
