@@ -341,7 +341,6 @@ func updateDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 
 //Called when DELETE /deployment is called an id should be passed as a query parameter
 func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
-	//TODO: Tear this apart and redo it
 	authCode := checkAuthentication(database, r.Header["X-Auth-Token"][0], DeleteDeploymentPermission)
 	if authCode == 0 {
 		//Process the query parameters
@@ -364,25 +363,13 @@ func deleteDeploymentAPIHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//=====Delete Logic=====
-		//Stop the container
-		err := dClient.StopContainer(deployment.ContainerID, 10)
+		idInt, _ := strconv.ParseUint(id, 10, 64)
+		err := DeleteDeployment(dClient, database, uint(idInt))
 		if err != nil {
-			log.Warning(err)
-			//w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error()+"\n")
-			//return
+			fmt.Fprint(w, "Deleted")
+		} else {
+			log.Warningf("Error Deleting Deployment: %s\n", err.Error())
 		}
-		//Remove the container
-		err = removeContainer(dClient, deployment.ContainerID)
-		if err != nil {
-			log.Warning(err)
-			//w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error()+"\n")
-			//return
-		}
-		//Delete Record
-		database.Delete(&deployment)
-		fmt.Fprint(w, "Deleted")
 	} else if authCode == 2 {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)
