@@ -170,7 +170,7 @@ func createDeploymentEndpoint(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Fprintf(w,"Error: %s\n", err.Error())
 		}
-		fmt.Fprint(w, "Created: %s\n", deployment.ProjectName)
+		fmt.Fprint(w, "Created: %s(ID: %d)\n", deployment.ProjectName, deployment.ID)
 	} else if authCode == 2 {
 		//Unauthorized 401
 		w.WriteHeader(http.StatusUnauthorized)

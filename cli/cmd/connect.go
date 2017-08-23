@@ -54,7 +54,7 @@ var connectCmd = &cobra.Command{
 		if len(args) == 0 {
 			fmt.Print("Enter Host: ")
 			host, _ = reader.ReadString('\n')
-			host = strings.TrimSpace(host)
+			host = strings.TrimSpace(host) + ":8000"
 		} else {
 			host = args[0]
 		}
@@ -140,7 +140,8 @@ func login(hostname string, data url.Values, secure bool, ignoreSSL bool) {
 	//Convert the JSON into an AutenticationToken struct
 	var authenticationToken simpleauth.Session
 	if err = json.Unmarshal(buf.Bytes(), &authenticationToken); err != nil {
-		fmt.Errorf("Error Processing Session Response: %s\n", err.Error())
+		fmt.Println("Bad Login!")
+		//fmt.Printf("Error Processing Session Response: %s\n", err.Error())
 		os.Exit(1)
 	}
 	viper.Set("AuthenticationToken", authenticationToken.AuthenticationToken)
