@@ -24,7 +24,7 @@ import (
 type Deployment struct {
 	gorm.Model
 	ProjectName      string //Name of this project
-	ownerID          uint   //ID of user that owns this project
+	OwnerID          uint   //ID of user that owns this project
 	VolumePath       string //Path to the folder that contains the meteor application on the hose
 	AutoStart        bool   //Should the container be started automatically
 	ContainerID      string //The ID of the container that contains the application
@@ -32,4 +32,5 @@ type Deployment struct {
 	Status           string //Status of the container, updated on inspect
 	URL              string //URL used to reach the service. Blank until deployment is complete
 	MongoContainerID string //The ID of the container that is running this app's mongo instance
+	//IsDead           bool   //true if the deployment is in an irreversible error state
 }
