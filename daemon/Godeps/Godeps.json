@@ -2,9 +2,6 @@
 	"ImportPath": "github.com/twa16/meteor-deploy-system/daemon",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
-	"Packages": [
-		"./..."
-	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Azure/go-ansiterm",
