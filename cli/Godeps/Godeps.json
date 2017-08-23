@@ -121,6 +121,11 @@
 			"Rev": "4d0e916071f68db74f8a73926335f809396d6b42"
 		},
 		{
+			"ImportPath": "github.com/satori/go.uuid",
+			"Comment": "v1.1.0-8-g5bf94b6",
+			"Rev": "5bf94b69c6b68ee1b541973bb8e1144db23a194b"
+		},
+		{
 			"ImportPath": "github.com/spf13/afero",
 			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
 		},
@@ -153,8 +158,20 @@
 			"Rev": "651d9d916abc3c3d6a91a12549495caba5edffd2"
 		},
 		{
+			"ImportPath": "github.com/twa16/go-auth",
+			"Rev": "9eee9d30bc017f7858148f53f504c35a8e7fc1ec"
+		},
+		{
 			"ImportPath": "github.com/twa16/meteor-deploy-system/common",
 			"Rev": "dc7809b6588a789064362aba8102b6c1e608817b"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/bcrypt",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/blowfish",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
