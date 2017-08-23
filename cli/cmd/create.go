@@ -59,7 +59,6 @@ var createCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		} else {
-			project.tarballPath = args[1]
 			if _, err := os.Stat(project.tarballPath); os.IsNotExist(err) {
 				fmt.Println("The specified project tarball does not exist")
 				os.Exit(1)
@@ -76,7 +75,6 @@ var createCmd = &cobra.Command{
 				}
 			}
 		} else {
-			project.settingsPath = args[2]
 			if _, err := os.Stat(project.settingsPath); os.IsNotExist(err) {
 				fmt.Println("The specified settings file does not exist")
 				os.Exit(1)

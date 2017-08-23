@@ -26,6 +26,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"os"
 	"net/http"
+	"strconv"
 )
 
 // deleteCmd represents the delete command
@@ -47,7 +48,7 @@ to quickly create a Cobra application.`,
 func init() {
 	deploymentCmd.AddCommand(deleteCmd)
 
-	createCmd.Flags().StringVar(&project.projectName, "name", "", "Name of the project")
+	deleteCmd.Flags().StringVar(&project.projectName, "name", "", "Name of the project")
 }
 
 func deleteDeployment() {
